@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LikeGod.net | Premium Store</title>
+    <style>
+        :root { --bg: #121214; --card: #1a1a1e; --accent: #ffd700; --text: #ffffff; --text-muted: #94a3b8; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 40px; text-align: center; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid #2d2d34; padding-bottom: 15px; }
+        .tariff-container { display: flex; justify-content: center; gap: 30px; margin-top: 40px; }
+        .tariff-card { background: var(--card); border: 2px solid #2d2d34; border-radius: 12px; padding: 30px; width: 220px; transition: 0.3s; }
+        .tariff-card:hover { border-color: var(--accent); transform: scale(1.02); }
+        .price { font-size: 36px; font-weight: bold; margin: 20px 0; color: #ffffff; }
+        .btn { background: var(--accent); color: #000; border: none; padding: 12px 25px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        .btn:disabled { background: #555 !important; color: #aaa !important; cursor: not-allowed; }
+        .badge { background: #ef4444; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; display: inline-block; margin-bottom: 10px; }
+        .lang-btn { background: #2d2d34; color: var(--text-muted); border: 1px solid #444; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="/main" style="color: var(--text-muted); text-decoration: none;">← Cancel store purchase</a>
+        <div>
+            <button onclick="showLangAlert()" class="lang-btn">EN / RU</button>
+        </div>
+    </header>
+
+    <h1 style="color: var(--accent); margin-top: 20px;">★ UNLOCK PREMIUM PERKS ★</h1>
+    <p style="color: var(--text-muted); max-width: 600px; margin: 0 auto;" id="premium-expiration-info">
+        Gain real-time access to the built-in server skinchanger matrix. Equip weapon skins instantly during 1v1 money duels matches.
+    </p>
+
+    <div class="tariff-container" id="tariffs-list">Loading store items...</div>
+
+    <script>
+        let isAlreadyPremium = false;
+
+        function showLangAlert() {
+            alert("Language selection function will be available soon! / Функция выбора языка появится в ближайшее время!");
+        }
+
+        function checkPremiumStatusAndLoad() {
+            fetch('/user/me')
+                .then(res => res.json())
+                .then(user => {
+                    isAlreadyPremium = user.is_premium;
+                    if (isAlreadyPremium && user.premium_until) {
+                        const expireDate = new Date(user.premium_until).toLocaleDateString();
+                        document.getElementById('premium-expiration-info').innerHTML = `<span style="color: #ffd700; font-weight: bold; font-size: 18px;">Your Premium is active! Expires on: ${expireDate}</span>`;
+                    }
+                    loadTariffs();
+                }).catch(() => loadTariffs());
+        }
+
+        function loadTariffs() {
+            fetch('/api/v1/premium/tariffs')
+                .then(res => res.json())
+                .then(tariffs => {
+                    const cont = document.getElementById('tariffs-list');
+                    cont.innerHTML = '';
+                    tariffs.forEach(t => {
+                        cont.innerHTML += `
+                            <div class="tariff-card">
+                                ${t.discount_text ? `<span class="badge">${t.discount_text} DISCOUNT</span>` : ''}
+                                <h3>${t.duration_months} Month${t.duration_months > 1 ? 's' : ''}</h3>
+                                <div class="price">$${t.price}</div>
+                                <p style="color:var(--text-muted); font-size:13px; margin-bottom:20px;">Full Skinchanger Access Token</p>
+                                <button class="btn" ${isAlreadyPremium ? 'disabled' : ''} onclick="buyPremium(${t.id})">Subscribe Now</button>
+                            </div>
+                        `;
+                    });
+                });
+        }
+
+        function buyPremium(tariffId) {
+            fetch('/api/v1/premium/buy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tariff_id: tariffId }) })
+            .then(res => { if(res.ok) { alert("Subscription unlocked!"); window.location.href = '/main'; } else { alert("Purchase rejected."); } });
+        }
+        checkPremiumStatusAndLoad();
+    </script>
+</body>
+</html>

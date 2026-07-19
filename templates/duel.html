@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LikeGod.net | Match Room</title>
+    <style>
+        :root { --bg: #121214; --card: #1a1a1e; --accent: #4CAF50; --text: #ffffff; --text-muted: #94a3b8; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 30px; }
+        header { max-width: 800px; margin: 0 auto 15px auto; display: flex; justify-content: space-between; align-items: center; }
+        .card { background: var(--card); padding: 25px; border-radius: 8px; border: 1px solid #2d2d34; max-width: 800px; margin: 0 auto 20px auto; }
+        .score-board { display: flex; justify-content: space-around; align-items: center; font-size: 28px; font-weight: bold; margin: 20px 0; background: #121214; padding: 20px; border-radius: 8px; border: 1px solid #2d2d34; }
+        .btn { background: var(--accent); color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; font-weight: bold; transition: 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        .req-item { background: #121214; padding: 15px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #2d2d34; }
+        .status-badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 14px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }
+        .status-waiting { background: #3b82f6; color: white; }
+        .status-ready { background: #10b981; color: white; }
+        .status-playing { background: #f59e0b; color: white; }
+        .status-processing { background: #8b5cf6; color: white; }
+        .status-disputed { background: #ef4444; color: white; }
+        .status-completed { background: #6b7280; color: white; }
+        .lang-btn { background: #2d2d34; color: var(--text-muted); border: 1px solid #444; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="/main" style="color: var(--text-muted); text-decoration: none; font-weight: 500;">← Exit Lobby</a>
+        <div>
+            <button onclick="showLangAlert()" class="lang-btn">EN / RU</button>
+        </div>
+    </header>
+
+    <div class="card">
+        <h2 style="text-align: center; color: var(--accent); margin-top: 10px;">DUEL ROOM LOBBY #<span id="lobby-id-title">...</span></h2>
+
+        <div style="text-align: center;">
+            <span id="lobby-status-badge" class="status-badge status-waiting">Loading...</span>
+        </div>
+
+        <div class="score-board">
+            <div>
+                <a id="creator-link" href="#" style="color: #60a5fa; text-decoration: none; font-weight: bold;">Creator</a>
+                <div id="creator-meta" style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">Elo: 1000</div>
+            </div>
+            <div style="color: var(--accent); font-size: 36px;"><span id="c-score">0</span> : <span id="g-score">0</span></div>
+            <div>
+                <a id="guest-link" href="#" style="color: #f43f5e; text-decoration: none; font-weight: bold;">Opponent</a>
+                <div id="guest-meta" style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">Waiting...</div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 20px; font-size: 18px;">
+            Total Prize Pool: <span id="total-bank-display" style="color: var(--accent); font-weight: bold;">$0.00</span>
+        </div>
+
+        <div id="guest-action-block" style="display: none; text-align: center; margin-top: 20px;">
+            <button class="btn" onclick="submitJoinRequest()">Send Challenge / Join Request</button>
+        </div>
+
+        <div id="creator-action-block" style="display: none; text-align: center; margin-top: 20px;">
+            <button class="btn" style="background: #ef4444;" onclick="cancelLobby()">Cancel Lobby & Refund Funds</button>
+        </div>
+
+        <div id="payout-confirmation-block" style="display: none; text-align: center; margin-top: 20px; background: #221515; padding: 15px; border-radius: 6px; border: 1px solid #f43f5e;">
+            <p style="color: #f43f5e; font-weight: bold; margin-top: 0;">Match finished! Confirm the result or file a dispute if rules were broken:</p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button class="btn" onclick="confirmPayout()">Confirm Result</button>
+                <button class="btn" style="background: #ef4444;" onclick="disputeMatch()">Dispute / File Protest</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" id="creator-requests-block" style="display: none;">
+        <h2>Incoming Challenging Profiles</h2>
+        <div id="requests-list">Waiting...</div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const duelId = urlParams.get('id');
+        document.getElementById('lobby-id-title').innerText = duelId;
+
+        let currentUser = null;
+        let lobbyData = null;
+
+        function showLangAlert() {
+            alert("Language selection function will be available soon! / Функция выбора языка появится в ближайшее время!");
+        }
+
+        function updateLobbyData() {
+            fetch('/user/me')
+                .then(res => res.json())
+                .then(user => {
+                    currentUser = user;
+                    return fetch(`/api/v1/duels/${duelId}`);
+                })
+                .then(res => res.json())
+                .then(duel => {
+                    if (!duel) return;
+                    lobbyData = duel;
+
+                    document.getElementById('creator-link').innerText = duel.creator_username;
+                    document.getElementById('creator-link').href = `/p/${duel.creator_username}`;
+                    document.getElementById('creator-meta').innerText = `Elo: ${duel.creator_elo} (Tier: ${duel.creator_rank})`;
+
+                    if (duel.guest_id) {
+                        document.getElementById('guest-link').innerText = duel.guest_username;
+                        document.getElementById('guest-link').href = `/p/${duel.guest_username}`;
+                        document.getElementById('guest-meta').innerText = `Elo: ${duel.guest_elo} (Tier: ${duel.guest_rank})`;
+                    } else {
+                        document.getElementById('guest-link').innerText = "Waiting for opponent...";
+                        document.getElementById('guest-link').removeAttribute('href');
+                        document.getElementById('guest-meta').innerText = "Slot open";
+                    }
+
+                    document.getElementById('c-score').innerText = duel.creator_score;
+                    document.getElementById('g-score').innerText = duel.guest_score;
+                    document.getElementById('total-bank-display').innerText = `$${duel.total_bank}`;
+
+                    const badge = document.getElementById('lobby-status-badge');
+                    badge.className = `status-badge status-${duel.status}`;
+                    badge.innerText = duel.status.toUpperCase();
+
+                    const isCreator = (currentUser.id === duel.creator_id);
+
+                    document.getElementById('guest-action-block').style.display = 'none';
+                    document.getElementById('creator-action-block').style.display = 'none';
+                    document.getElementById('creator-requests-block').style.display = 'none';
+                    document.getElementById('payout-confirmation-block').style.display = 'none';
+
+                    if (isCreator) {
+                        if (duel.status === 'waiting') {
+                            document.getElementById('creator-requests-block').style.display = 'block';
+                            document.getElementById('creator-action-block').style.display = 'block';
+                            loadIncomingRequests();
+                        }
+                    } else {
+                        if (duel.status === 'waiting') {
+                            document.getElementById('guest-action-block').style.display = 'block';
+                        }
+                    }
+
+                    if (duel.status === 'processing') {
+                        document.getElementById('payout-confirmation-block').style.display = 'block';
+                    }
+                })
+                .catch(err => console.log(err));
+        }
+
+        function submitJoinRequest() {
+            fetch(`/api/v1/duels/${duelId}/request`, { method: 'POST' })
+                .then(res => {
+                    if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
+                    return res.json();
+                })
+                .then(() => alert("Request sent!"))
+                .catch(err => alert("Error: " + err.message));
+        }
+
+        function cancelLobby() {
+            if (!confirm("Cancel this lobby and refund your funds?")) return;
+            fetch(`/api/v1/duels/${duelId}/cancel`, { method: 'DELETE' })
+                .then(res => {
+                    if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
+                    return res.json();
+                })
+                .then(() => {
+                    alert("Lobby canceled successfully.");
+                    window.location.href = '/main';
+                })
+                .catch(err => alert("Error: " + err.message));
+        }
+
+        function loadIncomingRequests() {
+            fetch(`/api/v1/duels/${duelId}/requests`)
+                .then(res => res.json())
+                .then(requests => {
+                    const container = document.getElementById('requests-list');
+                    container.innerHTML = '';
+                    if (!requests || requests.length === 0) {
+                        container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">No challengers pending yet.</p>';
+                        return;
+                    }
+                    requests.forEach(r => {
+                        container.innerHTML += `
+                            <div class="req-item">
+                                <div><strong>${r.username}</strong> (Elo: ${r.elo} | Tier: ${r.rank})</div>
+                                <button class="btn" style="padding:8px 16px; font-size:14px;" onclick="acceptChallenger(${r.request_id})">Accept Challenge</button>
+                            </div>
+                        `;
+                    });
+                });
+        }
+
+        function acceptChallenger(reqId) {
+            fetch(`/api/v1/requests/${reqId}/accept`, { method: 'POST' })
+                .then(res => {
+                    if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
+                    return res.json();
+                })
+                .then(() => {
+                    alert("Challenge accepted!");
+                    updateLobbyData();
+                })
+                .catch(err => alert("Error: " + err.message));
+        }
+
+        function confirmPayout() {
+            fetch(`/api/v1/duels/${duelId}/confirm`, { method: 'POST' })
+                .then(res => res.json())
+                .then(() => {
+                    alert("Payout completed!");
+                    window.location.href = '/main';
+                });
+        }
+
+        function disputeMatch() {
+            if (!confirm("Are you sure you want to dispute this match and involve an administrator/judge?")) return;
+            fetch(`/api/v1/duels/${duelId}/dispute`, { method: 'POST' })
+                .then(res => {
+                    if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
+                    return res.json();
+                })
+                .then(() => {
+                    alert("Dispute logged. Escrow is locked. Administrator will review the gameplay demo.");
+                    updateLobbyData();
+                })
+                .catch(err => alert("Error: " + err.message));
+        }
+
+        updateLobbyData();
+        setInterval(updateLobbyData, 3000);
+    </script>
+</body>
+</html>

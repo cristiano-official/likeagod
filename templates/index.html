@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LikeGod.net | CS2 Esports Matchmaking & Tournament Platform</title>
+    <style>
+        :root { --bg: #121214; --card: #1a1a1e; --accent: #4CAF50; --text: #ffffff; --text-muted: #94a3b8; --blue: #3b82f6; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; }
+        header { background: var(--card); padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2d2d34; }
+        .logo { font-size: 24px; font-weight: bold; color: var(--accent); text-decoration: none; }
+        nav { display: flex; align-items: center; }
+        nav a { color: var(--text); text-decoration: none; margin-left: 20px; font-weight: 500; cursor: pointer; }
+        nav a:hover { color: var(--accent); }
+        .lang-btn { background: #2d2d34; color: var(--text-muted); border: 1px solid #444; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 15px; cursor: pointer; font-weight: bold; }
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        .hero { background: linear-gradient(135deg, #1e3a1f 0%, #141414 100%); padding: 40px; border-radius: 12px; margin-bottom: 30px; text-align: center; }
+        .hero h1 { margin: 0 0 10px 0; font-size: 36px; }
+        .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
+        .card { background: var(--card); border-radius: 10px; padding: 25px; border: 1px solid #2d2d34; margin-bottom: 25px; }
+        h2 { margin-top: 0; color: var(--accent); font-size: 20px; border-bottom: 1px solid #2d2d34; padding-bottom: 10px; }
+        .btn { background: var(--accent); color: white; border: none; padding: 12px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.2s; text-decoration: none; display: inline-block; }
+        .btn:hover { opacity: 0.9; }
+        .btn-danger { background: #ef4444; }
+        .form-group { margin-bottom: 15px; }
+        input, select { width: 100%; box-sizing: border-box; background: #121214; border: 1px solid #2d2d34; padding: 10px; border-radius: 6px; color: white; font-size: 16px; }
+        .news-slider { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
+        .news-card { min-width: 250px; background: #121214; border-radius: 8px; overflow: hidden; border: 1px solid #2d2d34; display: flex; flex-direction: column; justify-content: space-between; }
+        .news-card p { padding: 0 10px; margin: 10px 0; font-size: 14px; font-weight: bold; }
+        .news-card img { width: 100%; height: 120px; object-fit: cover; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-content { background: var(--card); border: 2px solid var(--accent); padding: 30px; border-radius: 12px; width: 400px; text-align: center; box-shadow: 0 0 25px rgba(76, 175, 80, 0.3); transform: scale(0.8); transition: transform 0.3s ease; }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="/main" class="logo">LIKEGOD.NET</a>
+        <nav id="navbar">
+            <span id="user-stub">Loading...</span>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="hero">
+            <h1>CS2 1v1 Dedicated Servers with Prize Pool Allocation</h1>
+            <p style="color: var(--text-muted); font-size: 18px; margin: 0;">Connect to LikeGod high-tickrate servers, defeat your opponent and claim the match bank.</p>
+        </div>
+
+        <div class="card">
+            <h2>Latest Platform Announcements</h2>
+            <div class="news-slider" id="news-container">Loading announcements...</div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Statistics & Automated CS2 Server Connection</h2>
+                <p>Our platform provides a fully automated allocation service for high-performance dedicated CS2 servers to host 1v1 competitive matches between players. The system dynamically provisions the optimal server route and configures tournament plugins.</p>
+                <a href="/duels" class="btn" style="background: var(--blue); width: 100%; text-align: center; box-sizing: border-box;">Open CS2 Matchmaking Lobby Hub →</a>
+            </div>
+
+            <div class="card" id="create-lobby-block" style="display: none;">
+                <h2>Create Room Session</h2>
+                <div class="form-group">
+                    <label>Prize Bank Allocation ($)</label>
+                    <input type="number" id="total_bank" value="10.0" step="0.5">
+                </div>
+                <div class="form-group">
+                    <label>Select Tournament Map</label>
+                    <select id="map_name">
+                        <option value="aim_redline">aim_redline (Dedicated Server)</option>
+                        <option value="aim_ag_texture">aim_ag_texture (Dedicated Server)</option>
+                        <option value="awp_india">awp_india (Dedicated Server)</option>
+                    </select>
+                </div>
+                <button class="btn" style="width: 100%;" onclick="createLobby()">Launch CS2 Match Server</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="payment-success-popup" class="modal-overlay">
+        <div class="modal-content">
+            <div style="font-size: 40px; margin-bottom: 10px;">💸</div>
+            <h3>Invoice Generated!</h3>
+            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px; line-height: 1.5;">
+                Your payment invoice is ready. Click the button below to process secure transaction. The checkout page will open in a new tab.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <a id="popup-pay-link" href="#" target="_blank" class="btn" onclick="closePaymentPopup()" style="padding: 12px; font-size: 16px; color: black; background: var(--accent);">🚀 Proceed to Payment</a>
+                <button onclick="closePaymentPopup()" class="btn btn-danger">Close Window</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="payment-method-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: #1a1a1e; padding: 30px; border-radius: 12px; width: 380px; border: 1px solid #2d2d34; position: relative;">
+            <button onclick="closeMethodModal()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer;">&times;</button>
+            <h3 style="margin-top: 0; color: var(--accent);">Deposit Funds</h3>
+            <div class="form-group">
+                <label>Select Payment Gateway</label>
+                <select id="payment-gateway-select"></select>
+            </div>
+            <div class="form-group">
+                <label>Amount ($)</label>
+                <input type="number" id="payment-amount-input" value="1.0" min="1" step="1">
+            </div>
+            <button class="btn" style="width: 100%; margin-top: 10px;" onclick="submitDepositRequest()">Generate Invoice</button>
+        </div>
+    </div>
+
+    <footer style="background: var(--card); padding: 30px 40px; margin-top: 50px; border-top: 1px solid #2d2d34; text-align: center; font-size: 13px; color: var(--text-muted);">
+        <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+            <div style="text-align: left;">
+                <strong style="color: var(--accent); font-size: 16px;">LIKEGOD.NET</strong>
+                <p style="margin: 5px 0 0 0;">Automated matchmaking platform specializing in high-performance tournament server allocation.</p>
+                <p style="margin: 5px 0 0 0; font-size: 11px; color:#64748b;">
+                    Исполнитель: Индивидуальный предприниматель Москаленко А. А.<br>
+                    ИНН: 972904931221
+                </p>
+            </div>
+            <div style="display: flex; gap: 20px;">
+                <a href="/terms" style="color: var(--text-muted); text-decoration: none;">Terms of Service</a>
+                <a href="/privacy" style="color: var(--text-muted); text-decoration: none;">Privacy Policy</a>
+                <a href="/refund" style="color: var(--text-muted); text-decoration: none;">Refund & Cancellation</a>
+            </div>
+            <div style="text-align: right; font-size: 12px;">
+                <strong>Service Desk Communications:</strong><br>
+                Support Telegram: <a href="https://t.me/likeagod_support" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: bold;">@likeagod_support</a><br>
+                &copy; 2026 LikeGod.net. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function showLangAlert() {
+            alert("Language selection function will be available soon! / Функция выбора языка появится в ближайшее время!");
+        }
+
+        function loadMainData() {
+            fetch('/api/main')
+                .then(res => res.json())
+                .then(data => {
+                    const newsCont = document.getElementById('news-container');
+                    newsCont.innerHTML = '';
+                    data.news.forEach(n => {
+                        let buttonHtml = '';
+                        if (n.btn_text && n.btn_url) {
+                            buttonHtml = `<div style="padding: 0 10px 10px 10px;"><a href="${n.btn_url}" class="btn" style="width:100%; text-align:center; padding:6px; font-size:12px; box-sizing:border-box;">${n.btn_text}</a></div>`;
+                        }
+                        newsCont.innerHTML += `<div class="news-card"><div><img src="${n.image_path}"><p>${n.title}</p></div>${buttonHtml}</div>`;
+                    });
+
+                    const nav = document.getElementById('navbar');
+                    let langSwitcherHtml = `<button onclick="showLangAlert()" class="lang-btn">EN / RU</button>`;
+
+                    if (data.authenticated) {
+                        nav.innerHTML = `
+                            <a href="/premium" style="color: #ffd700;">★ Premium</a>
+                            <a href="#" onclick="openMethodModal()" style="color: #4CAF50; font-weight: bold;">+ Deposit</a>
+                            <a href="/p/${data.user.username}">Profile</a>
+                            <span style="margin-left:20px; font-weight:bold; color:var(--accent)">$${data.user.balance}</span>
+                            <a href="/auth/logout" class="btn btn-danger" style="padding:5px 10px; margin-left:15px; font-size:14px;">Logout</a>
+                            ${langSwitcherHtml}
+                        `;
+                        document.getElementById('create-lobby-block').style.display = 'block';
+                    } else {
+                        nav.innerHTML = `<a href="/auth/steam" class="btn">Login via Steam</a> ${langSwitcherHtml}`;
+                    }
+                });
+        }
+
+        function openMethodModal() {
+            fetch('/api/v1/payments/methods?type=deposit')
+                .then(res => res.json())
+                .then(methods => {
+                    const select = document.getElementById('payment-gateway-select');
+                    select.innerHTML = '';
+                    methods.forEach(m => { select.innerHTML += `<option value="${m.id}">${m.name} (${m.commission_label})</option>`; });
+                    document.getElementById('payment-method-modal').style.display = 'flex';
+                });
+        }
+        function closeMethodModal() { document.getElementById('payment-method-modal').style.display = 'none'; }
+
+        function submitDepositRequest() {
+            const amount = parseFloat(document.getElementById('payment-amount-input').value);
+            const methodId = parseInt(document.getElementById('payment-gateway-select').value);
+            closeMethodModal();
+
+            fetch('/api/v1/payments/deposit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount, method_id: methodId })
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('popup-pay-link').href = data.pay_url;
+                document.getElementById('payment-success-popup').classList.add('active');
+            });
+        }
+        function closePaymentPopup() { window.location.reload(); }
+
+        function createLobby() {
+            const bank = parseFloat(document.getElementById('total_bank').value);
+            const map = document.getElementById('map_name').value;
+            fetch('/api/v1/duels', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ total_bank: bank, map_name: map })
+            })
+            .then(res => res.json())
+            .then(d => { window.location.href = `/duel?id=${d.duel_id}`; });
+        }
+
+        window.onload = loadMainData;
+    </script>
+</body>
+</html>

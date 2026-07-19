@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LikeGod.net | Admin Dashboard</title>
+    <style>
+        :root {
+            --bg: #0f0f11;
+            --card: #16161a;
+            --accent: #ef4444;
+            --accent-green: #22c55e;
+            --text: #ffffff;
+            --text-muted: #94a3b8;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background: var(--card);
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2d2d34;
+        }
+        .logo {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 10px;
+            padding: 25px;
+            border: 1px solid #2d2d34;
+            margin-bottom: 30px;
+        }
+        h2 {
+            margin-top: 0;
+            color: var(--text);
+            font-size: 18px;
+            border-bottom: 1px solid #2d2d34;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-green {
+            background: var(--accent-green);
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        input, select, textarea {
+            width: 100%;
+            box-sizing: border-box;
+            background: #0f0f11;
+            border: 1px solid #2d2d34;
+            padding: 10px;
+            border-radius: 6px;
+            color: white;
+            font-size: 14px;
+        }
+        .news-item {
+            background: #0f0f11;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #2d2d34;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="/main" class="logo">LIKEGOD ADMIN</a>
+        <a href="/main" style="color: var(--text); text-decoration: none; font-weight: 500;">← Back to Main</a>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h2>User Management & Balance Adjustments</h2>
+            <div class="grid">
+                <div class="form-group">
+                    <label>Target SteamID or Username</label>
+                    <input type="text" id="admin-user-id" placeholder="e.g. user_1234 or SteamID">
+                </div>
+                <div class="form-group">
+                    <label>Action Amount ($ / Elo)</label>
+                    <input type="number" id="admin-amount" step="0.5" value="10.0">
+                </div>
+            </div>
+            <div style="display: flex; gap: 15px;">
+                <button class="btn btn-green" onclick="adjustBalance()">Add Balance</button>
+                <button class="btn" onclick="adjustElo()">Set ELO Rating</button>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Create News Announcement</h2>
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="news-title" required placeholder="New Tournament Starts!">
+                </div>
+                <div class="form-group">
+                    <label>Banner Image URL</label>
+                    <input type="text" id="news-image-url" required placeholder="https://example.com/image.jpg">
+                </div>
+                <div class="form-group">
+                    <label>Button Text (Optional - strictly ONE word, max 10 chars)</label>
+                    <input type="text" id="news-btn-text" placeholder="e.g. Join" maxlength="10">
+                </div>
+                <div class="form-group">
+                    <label>Button Action Link URL (Optional)</label>
+                    <input type="text" id="news-btn-url" placeholder="https://likeagod.net/premium">
+                </div>
+                <button onclick="submitNews()" class="btn btn-green" style="width: 100%;">Post Announcement</button>
+            </div>
+
+            <div>
+                <div class="card">
+                    <h2>Manage Active Tariffs</h2>
+                    <div class="form-group">
+                        <label>Duration Option</label>
+                        <select id="tariff-duration">
+                            <option value="1">1 Month Tier</option>
+                            <option value="3">3 Months Tier</option>
+                            <option value="12">12 Months Tier</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Price Set ($)</label>
+                        <input type="number" id="tariff-price" step="0.01" placeholder="4.99">
+                    </div>
+                    <div class="form-group">
+                        <label>Promo Discount Tag Label (Optional)</label>
+                        <input type="text" id="tariff-discount" placeholder="e.g. -20% Off">
+                    </div>
+                    <button class="btn btn-green" style="width: 100%;" onclick="updateTariff()">Create/Update Tariff Tier</button>
+                </div>
+
+                <div class="card">
+                    <h2>Platform Commission Settings</h2>
+                    <div class="form-group">
+                        <label>Commission Rate (%)</label>
+                        <input type="number" id="admin-commission" min="0" max="100" step="0.5" placeholder="10.0">
+                    </div>
+                    <button class="btn btn-green" style="width: 100%;" onclick="updateCommission()">Update Commission</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Active Announcements</h2>
+            <div id="admin-news-list">Loading news...</div>
+        </div>
+    </div>
+
+    <script>
+        function checkAdmin() {
+            fetch('/user/me')
+                .then(res => {
+                    if (!res.ok) throw new Error();
+                    return res.json();
+                })
+                .then(user => {
+                    if (user.role !== 'admin') {
+                        alert("Unauthorized admin access verified!");
+                        window.location.href = '/main';
+                    }
+                })
+                .catch(() => {
+                    alert("Unauthorized admin access verified!");
+                    window.location.href = '/main';
+                });
+        }
+        checkAdmin();
+
+        function adjustBalance() {
+            const user_id = document.getElementById('admin-user-id').value;
+            const amount = document.getElementById('admin-amount').value;
+            fetch('/api/v1/admin/adjust-balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target: user_id, amount: parseFloat(amount) })
+            })
+            .then(res => {
+                if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
+                return res.json();
+            })
+            .then(data => alert(data.message))
+            .catch(err => alert("Error: " + err.message));
+        }
+
+        function adjustElo() {
+            const user_id = document.getElementById('admin-user-id').value;
+            const amount = document.getElementById('admin-amount').value;
+            fetch('/api/v1/admin/adjust-elo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target: user_id, amount: parseInt(amount) })
+            })
+            .then(res => {
+                if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
+                return res.json();
+            })
+            .then(data => alert(data.message))
+            .catch(err => alert("Error: " + err.message));
+        }
+
+        function submitNews() {
+            const title = document.getElementById('news-title').value;
+            const imageUrl = document.getElementById('news-image-url').value;
+            const btnText = document.getElementById('news-btn-text').value;
+            const btnUrl = document.getElementById('news-btn-url').value;
+
+            if (!title || !imageUrl) {
+                alert("Please fill in Title and Image URL!");
+                return;
+            }
+
+            if (btnText) {
+                if (btnText.trim().split(/\s+/).length > 1) {
+                    alert("Button text must be strictly ONE word!");
+                    return;
+                }
+            }
+
+            fetch('/news/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: title,
+                    image_path: imageUrl,
+                    btn_text: btnText || null,
+                    btn_url: btnUrl || null
+                })
+            })
+            .then(res => {
+                if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
+                return res.json();
+            })
+            .then(data => {
+                alert("Announcement created successfully!");
+                document.getElementById('news-title').value = '';
+                document.getElementById('news-image-url').value = '';
+                document.getElementById('news-btn-text').value = '';
+                document.getElementById('news-btn-url').value = '';
+                loadAdminNews();
+            })
+            .catch(err => alert("Error: " + err.message));
+        }
+
+        function updateTariff() {
+            const duration = document.getElementById('tariff-duration').value;
+            const price = document.getElementById('tariff-price').value;
+            const discount = document.getElementById('tariff-discount').value;
+
+            fetch('/api/v1/admin/tariffs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    duration_months: parseInt(duration),
+                    price: parseFloat(price),
+                    discount_text: discount || null
+                })
+            })
+            .then(res => {
+                if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
+                return res.json();
+            })
+            .then(data => alert("Tariff tier successfully updated inside database!"))
+            .catch(err => alert("Error: " + err.message));
+        }
+
+        /* Новая функция обновления комиссии */
+        function updateCommission() {
+            const val = document.getElementById('admin-commission').value;
+            if (!val) return;
+
+            fetch('/api/v1/admin/commission', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ commission_percent: parseFloat(val) })
+            })
+            .then(res => {
+                if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
+                return res.json();
+            })
+            .then(data => alert("Platform commission updated to " + data.commission_percent + "%!"))
+            .catch(err => alert("Error: " + err.message));
+        }
+
+        function loadAdminNews() {
+            fetch('/news')
+                .then(res => res.json())
+                .then(news => {
+                    const cont = document.getElementById('admin-news-list');
+                    cont.innerHTML = '';
+                    if (news.length === 0) {
+                        cont.innerHTML = '<p style="color: var(--text-muted)">No active announcements.</p>';
+                        return;
+                    }
+                    news.forEach(n => {
+                        cont.innerHTML += `
+                            <div class="news-item">
+                                <div><strong>${n.title}</strong> (${n.image_path})</div>
+                                <button class="btn" style="padding: 5px 10px; font-size:12px;" onclick="deleteNews(${n.id})">Delete</button>
+                            </div>
+                        `;
+                    });
+                });
+        }
+        loadAdminNews();
+
+        function deleteNews(id) {
+            fetch(`/news/${id}`, { method: 'DELETE' })
+                .then(res => res.json())
+                .then(() => loadAdminNews());
+        }
+    </script>
+</body>
+</html>
