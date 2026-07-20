@@ -6,13 +6,19 @@
   <title>LikeGod.net</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
   <header class="site-header">
     <div class="site-header__inner">
-      <a class="brand" href="/main"><span class="brand__mark">LG</span><span class="brand__text"><span class="brand__title">LIKEGOD ADMIN</span><span class="brand__subtitle" data-i18n="admin.hero.eyebrow"></span></span></a>
+      <a class="brand" href="/main">
+        <span class="brand__mark">LG</span>
+        <span class="brand__text">
+          <span class="brand__title">LIKE<span class="brand__title-accent">GOD</span></span>
+          <span class="brand__subtitle" data-i18n="admin.hero.eyebrow"></span>
+        </span>
+      </a>
       <div id="navbar"></div>
     </div>
   </header>
@@ -21,6 +27,7 @@
     <section class="surface">
       <div class="section-head">
         <div>
+          <span class="section-title__eyebrow" data-i18n="admin.hero.eyebrow"></span>
           <h1 class="page-title" data-i18n="admin.hero.title"></h1>
           <p class="page-subtitle" data-i18n="admin.hero.subtitle"></p>
         </div>
@@ -100,25 +107,31 @@
         const news = await LikeGodApp.api('/news', { headers: {} });
         const target = document.getElementById('admin-news-list');
         if (!news.length) {
-          target.innerHTML = `<div class="state-card">${LikeGodApp.t('common.states.emptyNews')}</div>`;
+          target.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('common.states.emptyNews'))}</div>`;
           return;
         }
         target.innerHTML = news.map((item) => `
           <article class="duel-card">
             <div>
-              <h3 style="margin:0 0 6px;">${item.title}</h3>
-              <div class="meta-line">${item.image_path}</div>
+              <span class="badge">${LikeGodApp.escapeHtml(new Date(item.created_at).toLocaleDateString())}</span>
+              <h3 style="margin:10px 0 6px;">${LikeGodApp.escapeHtml(item.title)}</h3>
+              <div class="meta-line">${LikeGodApp.escapeHtml(item.image_path || '—')}</div>
             </div>
-            <button class="btn-danger" type="button" data-news-delete="${item.id}">${LikeGodApp.t('common.actions.delete')}</button>
+            <div class="duel-card__footer">
+              ${item.btn_url ? `<a class="btn-ghost" href="${LikeGodApp.safeUrl(item.btn_url, '#')}" target="_blank" rel="noreferrer">${LikeGodApp.escapeHtml(item.btn_text || LikeGodApp.t('common.actions.open'))}</a>` : '<span class="meta-line">—</span>'}
+              <button class="btn-danger" type="button" data-news-delete="${item.id}">${LikeGodApp.escapeHtml(LikeGodApp.t('common.actions.delete'))}</button>
+            </div>
           </article>
         `).join('');
         target.querySelectorAll('[data-news-delete]').forEach((button) => button.addEventListener('click', () => deleteNews(button.dataset.newsDelete)));
       } catch (error) {
-        document.getElementById('admin-news-list').innerHTML = `<div class="state-card">${error.message}</div>`;
+        document.getElementById('admin-news-list').innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(error.message)}</div>`;
       }
     }
 
     async function submitNews() {
+      const button = document.getElementById('news-submit-btn');
+      LikeGodApp.setButtonBusy(button, true, LikeGodApp.t('admin.news.form.submitLoading'));
       try {
         await LikeGodApp.api('/news/create', {
           method: 'POST',
@@ -133,6 +146,8 @@
         await loadNews();
       } catch (error) {
         LikeGodApp.showToast(error.message, 'error');
+      } finally {
+        LikeGodApp.setButtonBusy(button, false);
       }
     }
 

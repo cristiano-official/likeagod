@@ -6,31 +6,37 @@
   <title>LikeGod.net</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
   <header class="site-header">
     <div class="site-header__inner">
-      <a class="brand" href="/main"><span class="brand__mark">LG</span><span class="brand__text"><span class="brand__title">LIKEGOD.NET</span><span class="brand__subtitle" data-i18n="common.brandSubtitle"></span></span></a>
+      <a class="brand" href="/main">
+        <span class="brand__mark">LG</span>
+        <span class="brand__text">
+          <span class="brand__title">LIKE<span class="brand__title-accent">GOD</span></span>
+          <span class="brand__subtitle" data-i18n="common.brandSubtitle"></span>
+        </span>
+      </a>
       <div id="navbar"></div>
     </div>
   </header>
 
   <main class="page-shell">
-    <section class="hero">
-      <div>
-        <span class="hero__eyebrow" data-i18n="premium.hero.eyebrow"></span>
-        <h1 data-i18n="premium.hero.title"></h1>
+    <section class="hero-banner">
+      <div class="hero-copy">
+        <span class="hero-badge" data-i18n="premium.hero.eyebrow"></span>
+        <h1 data-i18n-html="premium.hero.titleHtml"></h1>
         <p data-i18n="premium.hero.subtitle"></p>
       </div>
-      <div class="surface" id="premium-status-card">
-        <div class="section-head"><div><h3 data-i18n="premium.status.title"></h3></div></div>
+      <aside class="hero-session" id="premium-status-card">
+        <div class="section-head"><div><h2 data-i18n="premium.status.title"></h2></div></div>
         <div class="state-card" data-i18n="common.states.loading"></div>
-      </div>
+      </aside>
     </section>
 
-    <section class="surface">
+    <section class="surface" style="margin-top:20px;">
       <div class="section-head"><div><h2 data-i18n="premium.cards.title"></h2><p data-i18n="premium.cards.subtitle"></p></div></div>
       <div class="tariff-grid" id="tariffs-list"><div class="state-card" data-i18n="common.states.loading"></div></div>
     </section>
@@ -49,13 +55,13 @@
     function renderStatus() {
       const target = document.getElementById('premium-status-card');
       if (!me) {
-        target.innerHTML = `<div class="state-card">${LikeGodApp.t('premium.status.guest')}</div>`;
+        target.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('premium.status.guest'))}</div>`;
         return;
       }
       if (me.is_premium && me.premium_until) {
-        target.innerHTML = `<div class="stat-card"><div class="stat-card__label">${LikeGodApp.t('premium.status.active')}</div><div class="stat-card__value">${new Date(me.premium_until).toLocaleDateString()}</div></div>`;
+        target.innerHTML = `<div class="stat-card"><div class="stat-card__label">${LikeGodApp.escapeHtml(LikeGodApp.t('premium.status.active'))}</div><div class="stat-card__value">${LikeGodApp.escapeHtml(new Date(me.premium_until).toLocaleDateString())}</div></div>`;
       } else {
-        target.innerHTML = `<div class="state-card">${LikeGodApp.t('premium.status.inactive')}</div>`;
+        target.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('premium.status.inactive'))}</div>`;
       }
     }
 
@@ -73,31 +79,35 @@
         const tariffs = await LikeGodApp.api('/api/v1/premium/tariffs', { headers: {} });
         const target = document.getElementById('tariffs-list');
         if (!tariffs.length) {
-          target.innerHTML = `<div class="state-card">${LikeGodApp.t('common.states.emptyTariffs')}</div>`;
+          target.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('common.states.emptyTariffs'))}</div>`;
           return;
         }
         target.innerHTML = tariffs.map((tariff) => `
           <article class="tariff-card">
-            ${tariff.discount_text ? `<span class="badge badge-premium">${tariff.discount_text}</span>` : ''}
-            <h3>${LikeGodApp.t('premium.cards.months', { months: tariff.duration_months })}</h3>
-            <div class="duel-card__value">${LikeGodApp.formatMoney(tariff.price)}</div>
-            <p class="page-subtitle">${LikeGodApp.t('premium.cards.cardText')}</p>
-            <button class="btn-premium" type="button" data-buy-tariff="${tariff.id}" ${me?.is_premium ? 'disabled' : ''}>${LikeGodApp.t('premium.cards.buy')}</button>
+            ${tariff.discount_text ? `<span class="badge badge-premium">${LikeGodApp.escapeHtml(tariff.discount_text)}</span>` : ''}
+            <h3>${LikeGodApp.escapeHtml(LikeGodApp.t('premium.cards.months', { months: tariff.duration_months }))}</h3>
+            <div class="tariff-card__price">${LikeGodApp.escapeHtml(LikeGodApp.formatMoney(tariff.price))}</div>
+            <p class="tariff-card__meta">${LikeGodApp.escapeHtml(LikeGodApp.t('premium.cards.cardText'))}</p>
+            <button class="btn-premium" type="button" data-buy-tariff="${tariff.id}" ${me?.is_premium ? 'disabled' : ''}>${LikeGodApp.escapeHtml(LikeGodApp.t('premium.cards.buy'))}</button>
           </article>
         `).join('');
         target.querySelectorAll('[data-buy-tariff]').forEach((button) => button.addEventListener('click', () => buyPremium(button.dataset.buyTariff)));
       } catch (error) {
-        document.getElementById('tariffs-list').innerHTML = `<div class="state-card">${error.message}</div>`;
+        document.getElementById('tariffs-list').innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(error.message)}</div>`;
       }
     }
 
     async function buyPremium(tariffId) {
+      const button = document.querySelector(`[data-buy-tariff="${tariffId}"]`);
+      LikeGodApp.setButtonBusy(button, true, LikeGodApp.t('premium.cards.buyLoading'));
       try {
         await LikeGodApp.api('/api/v1/premium/buy', { method: 'POST', body: JSON.stringify({ tariff_id: Number(tariffId) }) });
         LikeGodApp.showToast(LikeGodApp.t('premium.toasts.purchased'), 'success');
         await loadPremium();
       } catch (error) {
         LikeGodApp.showToast(error.message, 'error');
+      } finally {
+        LikeGodApp.setButtonBusy(button, false);
       }
     }
 

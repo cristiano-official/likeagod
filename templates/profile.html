@@ -6,13 +6,19 @@
   <title>LikeGod.net</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
   <header class="site-header">
     <div class="site-header__inner">
-      <a class="brand" href="/main"><span class="brand__mark">LG</span><span class="brand__text"><span class="brand__title">LIKEGOD.NET</span><span class="brand__subtitle" data-i18n="common.brandSubtitle"></span></span></a>
+      <a class="brand" href="/main">
+        <span class="brand__mark">LG</span>
+        <span class="brand__text">
+          <span class="brand__title">LIKE<span class="brand__title-accent">GOD</span></span>
+          <span class="brand__subtitle" data-i18n="common.brandSubtitle"></span>
+        </span>
+      </a>
       <div id="navbar"></div>
     </div>
   </header>
@@ -22,15 +28,17 @@
       <div class="stack">
         <section class="surface">
           <div class="profile-header">
-            <div class="avatar-lg"><img id="profile-avatar" src="" alt="avatar"></div>
-            <div>
-              <div class="section-title__eyebrow" data-i18n="profile.hero.eyebrow"></div>
-              <h1 class="page-title" id="profile-name">...</h1>
-              <div class="meta-line" id="profile-meta"></div>
-              <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;" id="profile-badges"></div>
+            <div style="display:flex; gap:16px; align-items:center; min-width:0;">
+              <div class="avatar-lg"><img id="profile-avatar" src="" alt="avatar"></div>
+              <div style="min-width:0;">
+                <div class="section-title__eyebrow" data-i18n="profile.hero.eyebrow"></div>
+                <h1 class="page-title" id="profile-name">...</h1>
+                <div class="meta-line" id="profile-meta"></div>
+                <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;" id="profile-badges"></div>
+              </div>
             </div>
           </div>
-          <p class="page-subtitle" id="profile-bio"></p>
+          <p class="page-subtitle" style="margin-top:14px;" id="profile-bio"></p>
         </section>
 
         <section class="surface">
@@ -75,7 +83,7 @@
               <select id="settings-language"></select>
             </div>
             <div class="form-group">
-              <label for="settings-theme" data-i18n="profile.settings.theme"></label>
+              <label for="settings-theme-toggle" data-i18n="profile.settings.theme"></label>
               <button type="button" id="settings-theme-toggle" class="theme-toggle" aria-label="Toggle light/dark theme">
                 <span class="theme-toggle__icons"><span>🌙</span><span>☀️</span></span>
                 <span class="theme-toggle__knob"></span>
@@ -128,20 +136,22 @@
 
     function renderProfileStats(stats) {
       const cards = [
-        { icon: '⚡', label: LikeGodApp.t('profile.stats.elo'), value: stats.elo },
-        { icon: '🏅', label: LikeGodApp.t('profile.stats.rank'), value: LikeGodApp.t('common.rank', { rank: stats.rank }) },
-        { icon: '🎯', label: LikeGodApp.t('profile.stats.winrate'), value: `${stats.winrate}%`, progress: stats.winrate },
-        { icon: '🎮', label: LikeGodApp.t('profile.stats.duels'), value: stats.duels },
-        { icon: '🏆', label: LikeGodApp.t('profile.stats.wins'), value: stats.wins },
-        { icon: '💥', label: LikeGodApp.t('profile.stats.kills'), value: stats.kills },
-        { icon: '🛡️', label: LikeGodApp.t('profile.stats.deaths'), value: stats.deaths },
-        { icon: '📈', label: LikeGodApp.t('profile.stats.kd'), value: stats.deaths ? (stats.kills / stats.deaths).toFixed(2) : stats.kills.toFixed(2) }
+        { icon: LikeGodApp.icon('chart'), label: LikeGodApp.t('profile.stats.elo'), value: stats.elo },
+        { icon: LikeGodApp.icon('trophy'), label: LikeGodApp.t('profile.stats.rank'), value: LikeGodApp.t('common.rank', { rank: stats.rank }) },
+        { icon: LikeGodApp.icon('sparkles'), label: LikeGodApp.t('profile.stats.winrate'), value: `${stats.winrate}%`, progress: stats.winrate },
+        { icon: LikeGodApp.icon('swords'), label: LikeGodApp.t('profile.stats.duels'), value: stats.duels },
+        { icon: LikeGodApp.icon('shield'), label: LikeGodApp.t('profile.stats.wins'), value: stats.wins },
+        { icon: LikeGodApp.icon('crosshair'), label: LikeGodApp.t('profile.stats.kills'), value: stats.kills },
+        { icon: LikeGodApp.icon('wallet'), label: LikeGodApp.t('profile.stats.deaths'), value: stats.deaths },
+        { icon: LikeGodApp.icon('chart'), label: LikeGodApp.t('profile.stats.kd'), value: stats.deaths ? (stats.kills / stats.deaths).toFixed(2) : stats.kills.toFixed(2) }
       ];
       document.getElementById('profile-stats-grid').innerHTML = cards.map((card) => `
         <article class="stat-card">
-          <div class="stat-card__icon">${card.icon}</div>
-          <div class="stat-card__label">${card.label}</div>
-          <div class="stat-card__value">${card.value}</div>
+          <div class="duel-card__header">
+            <span class="stat-card__label">${LikeGodApp.escapeHtml(card.label)}</span>
+            <span class="stat-card__icon">${card.icon}</span>
+          </div>
+          <div class="stat-card__value">${LikeGodApp.escapeHtml(String(card.value))}</div>
           ${card.progress !== undefined ? `<div class="progress" role="progressbar" aria-valuenow="${Math.max(0, Math.min(100, Number(card.progress || 0)))}" aria-valuemin="0" aria-valuemax="100"><span style="width:${Math.max(0, Math.min(100, Number(card.progress || 0)))}%"></span></div>` : ''}
         </article>
       `).join('');
@@ -194,11 +204,11 @@
       if (me.active_invoice) {
         invoiceBox.style.display = 'block';
         invoiceBox.innerHTML = `
-          <strong>${LikeGodApp.t('profile.billing.activeInvoice')}</strong>
-          <p>${LikeGodApp.t('profile.billing.activeInvoiceText', { amount: LikeGodApp.formatMoney(me.active_invoice.amount) })}</p>
-          <div class="button-row">
-            <a class="btn" target="_blank" rel="noreferrer" href="${me.active_invoice.pay_url}">${LikeGodApp.t('common.actions.pay')}</a>
-            <button class="btn-ghost" type="button" id="cancel-invoice-btn">${LikeGodApp.t('profile.billing.cancelInvoice')}</button>
+          <strong>${LikeGodApp.escapeHtml(LikeGodApp.t('profile.billing.activeInvoice'))}</strong>
+          <p>${LikeGodApp.escapeHtml(LikeGodApp.t('profile.billing.activeInvoiceText', { amount: LikeGodApp.formatMoney(me.active_invoice.amount) }))}</p>
+          <div class="button-row" style="margin-top:12px;">
+            <a class="btn" target="_blank" rel="noreferrer" href="${LikeGodApp.safeUrl(me.active_invoice.pay_url, '#')}">${LikeGodApp.escapeHtml(LikeGodApp.t('common.actions.pay'))}</a>
+            <button class="btn-ghost" type="button" id="cancel-invoice-btn">${LikeGodApp.escapeHtml(LikeGodApp.t('profile.billing.cancelInvoice'))}</button>
           </div>
         `;
         document.getElementById('cancel-invoice-btn').onclick = cancelInvoice;
@@ -212,24 +222,26 @@
         const history = await LikeGodApp.api('/api/v1/payments/history', { headers: {} });
         const rows = document.getElementById('history-rows');
         if (!history.length) {
-          rows.innerHTML = `<tr><td colspan="5">${LikeGodApp.t('common.states.emptyHistory')}</td></tr>`;
+          rows.innerHTML = `<tr><td colspan="5">${LikeGodApp.escapeHtml(LikeGodApp.t('common.states.emptyHistory'))}</td></tr>`;
           return;
         }
         rows.innerHTML = history.map((item) => `
           <tr>
-            <td>${item.date}</td>
-            <td>${item.type}</td>
-            <td>${LikeGodApp.formatMoney(item.amount)}</td>
-            <td>${item.address || '—'}</td>
-            <td>${LikeGodApp.statusLabel(item.status)}</td>
+            <td data-label="${LikeGodApp.escapeHtml(LikeGodApp.t('profile.history.columns.date'))}">${LikeGodApp.escapeHtml(item.date)}</td>
+            <td data-label="${LikeGodApp.escapeHtml(LikeGodApp.t('profile.history.columns.type'))}">${LikeGodApp.escapeHtml(item.type)}</td>
+            <td data-label="${LikeGodApp.escapeHtml(LikeGodApp.t('profile.history.columns.amount'))}">${LikeGodApp.escapeHtml(LikeGodApp.formatMoney(item.amount))}</td>
+            <td data-label="${LikeGodApp.escapeHtml(LikeGodApp.t('profile.history.columns.destination'))}">${LikeGodApp.escapeHtml(item.address || '—')}</td>
+            <td data-label="${LikeGodApp.escapeHtml(LikeGodApp.t('profile.history.columns.status'))}">${LikeGodApp.escapeHtml(LikeGodApp.statusLabel(item.status))}</td>
           </tr>
         `).join('');
       } catch (error) {
-        document.getElementById('history-rows').innerHTML = `<tr><td colspan="5">${error.message}</td></tr>`;
+        document.getElementById('history-rows').innerHTML = `<tr><td colspan="5">${LikeGodApp.escapeHtml(error.message)}</td></tr>`;
       }
     }
 
     async function saveProfileSettings() {
+      const button = document.getElementById('save-profile-btn');
+      LikeGodApp.setButtonBusy(button, true, LikeGodApp.t('profile.settings.saving'));
       try {
         await LikeGodApp.api('/user/update', {
           method: 'POST',
@@ -247,6 +259,8 @@
         await loadProfile();
       } catch (error) {
         LikeGodApp.showToast(error.message, 'error');
+      } finally {
+        LikeGodApp.setButtonBusy(button, false);
       }
     }
 
@@ -262,13 +276,13 @@
 
     async function loadProfile() {
       try {
-        const profile = await LikeGodApp.api(`/user/by-name/${profileUsername}`, { headers: {} });
+        const profile = await LikeGodApp.api(`/user/by-name/${encodeURIComponent(profileUsername)}`, { headers: {} });
         ownProfilePayload = profile;
-        document.getElementById('profile-avatar').src = profile.avatar || '';
+        document.getElementById('profile-avatar').src = LikeGodApp.safeUrl(profile.avatar, '', { allowDataImage: true });
         document.getElementById('profile-name').textContent = profile.username;
         document.getElementById('profile-meta').textContent = `${profile.country || '—'} • ${LikeGodApp.t('common.labels.language')}: ${(profile.language || 'en').toUpperCase()}`;
         document.getElementById('profile-bio').textContent = profile.bio || LikeGodApp.t('profile.hero.emptyBio');
-        document.getElementById('profile-badges').innerHTML = profile.is_premium ? `<span class="badge badge-premium">${LikeGodApp.t('common.nav.premium')}</span>` : `<span class="badge">${LikeGodApp.t('profile.hero.standard')}</span>`;
+        document.getElementById('profile-badges').innerHTML = profile.is_premium ? `<span class="badge badge-premium">${LikeGodApp.escapeHtml(LikeGodApp.t('common.nav.premium'))}</span>` : `<span class="badge">${LikeGodApp.escapeHtml(LikeGodApp.t('profile.hero.standard'))}</span>`;
         renderProfileStats(profile.stats);
 
         if (profile.is_own_profile) {
@@ -277,7 +291,7 @@
           await loadHistory();
         }
       } catch (error) {
-        document.querySelector('.page-shell').innerHTML = `<section class="surface"><div class="state-card">${error.message}</div></section>`;
+        document.querySelector('.page-shell').innerHTML = `<section class="surface"><div class="state-card">${LikeGodApp.escapeHtml(error.message)}</div></section>`;
       }
     }
 
