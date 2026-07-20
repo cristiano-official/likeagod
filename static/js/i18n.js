@@ -33,7 +33,13 @@ window.I18n = (() => {
     );
   }
 
-  // camelCase / dotted last-segment -> "Title Case"
+  /**
+   * humanize(key) — user-facing fallback for missing translation keys.
+   * Extracts the last segment of a dotted path and converts camelCase to
+   * Title Case so users never see raw keys like "profile.stats.emptyDuels".
+   * Example: "profile.stats.emptyDuels" → "Empty Duels"
+   * This is a critical user-facing safety net — always returns readable text.
+   */
   function humanize(key) {
     const last = String(key).split('.').pop() || key;
     const spaced = last

@@ -432,7 +432,7 @@ p { color: var(--text-dim); }
   background: var(--accent);
   color: var(--accent-ink);
 }
-.btn:hover { background: #3dffc6; } /* fallback */
+.btn:hover { background: #35f7c1; } /* fallback: approx color-mix(#0ef5b5 84%, #fff) */
 .btn:hover { background: color-mix(in srgb, var(--accent) 84%, #fff); }
 
 .btn-secondary {

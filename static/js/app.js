@@ -837,7 +837,7 @@ function renderSettings(me) {
   document.getElementById('set-save').addEventListener('click', async () => {
     const bio = document.getElementById('set-bio').value;
     const lang = document.getElementById('set-lang').value;
-    const effects = document.getElementById('set-effect').value !== 'off';
+    const effects = document.getElementById('set-effect').value !== 'off'; // backend stores effects as boolean; type ('rain'/'snow') is client-side only
     try {
       await A.api('POST', '/user/update', { bio, language: lang, theme: window.Theme.current === 'light' ? 1 : 0, effects });
       A.toast(t('common.toasts.saved'), 'success');
