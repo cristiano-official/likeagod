@@ -1,74 +1,86 @@
-window.LikeGodSlider = (() => {
-  function init(root, options = {}) {
+/* slider.js — lightweight news carousel.
+   Autoplay (5s), prev/next arrows, dot indicators, touch/swipe, pause on hover.
+   Usage: Slider.create(rootEl) where rootEl contains:
+     .slider-track  (flex row of .slide)
+     .slider-dots   (dot buttons injected here)
+     .slider-arrow.prev / .slider-arrow.next (optional)
+*/
+window.Slider = (() => {
+  function create(root) {
     if (!root) return null;
-    const track = root.querySelector('[data-carousel-track]');
-    const slides = Array.from(root.querySelectorAll('[data-carousel-slide]'));
-    const dotsWrap = root.querySelector('[data-carousel-dots]');
-    const prev = root.querySelector('[data-carousel-prev]');
-    const next = root.querySelector('[data-carousel-next]');
-    if (!track || slides.length <= 1) return null;
+    const track = root.querySelector('.slider-track');
+    const slides = track ? Array.from(track.children) : [];
+    const dotsWrap = root.querySelector('.slider-dots');
+    const prev = root.querySelector('.slider-arrow.prev');
+    const next = root.querySelector('.slider-arrow.next');
+    if (!track || slides.length === 0) return null;
 
     let index = 0;
     let timer = null;
-    let paused = false;
-    let touchStart = 0;
+    const AUTOPLAY = 5000;
 
-    function goTo(nextIndex) {
-      index = (nextIndex + slides.length) % slides.length;
-      track.style.transform = `translateX(-${index * 100}%)`;
-      if (dotsWrap) {
-        dotsWrap.querySelectorAll('button').forEach((dot, dotIndex) => {
-          dot.classList.toggle('is-active', dotIndex === index);
-          dot.setAttribute('aria-current', dotIndex === index ? 'true' : 'false');
-        });
-      }
-    }
-
-    function startAuto() {
-      stopAuto();
-      if (!options.auto || slides.length < 2) return;
-      timer = setInterval(() => {
-        if (!paused) goTo(index + 1);
-      }, options.interval || 5200);
-    }
-
-    function stopAuto() {
-      if (timer) {
-        clearInterval(timer);
-        timer = null;
-      }
-    }
-
+    const dots = [];
     if (dotsWrap) {
-      dotsWrap.innerHTML = slides.map((_, dotIndex) => `<button type='button' class='carousel-dot ${dotIndex === 0 ? 'is-active' : ''}' data-dot='${dotIndex}' aria-label='Go to slide ${dotIndex + 1}' ${dotIndex === 0 ? 'aria-current=\"true\"' : ''}></button>`).join('');
-      dotsWrap.querySelectorAll('button').forEach((dot) => {
-        dot.addEventListener('click', () => goTo(Number(dot.dataset.dot)));
+      dotsWrap.innerHTML = '';
+      slides.forEach((_, i) => {
+        const b = document.createElement('button');
+        b.className = 'slider-dot' + (i === 0 ? ' active' : '');
+        b.setAttribute('aria-label', `Slide ${i + 1}`);
+        b.addEventListener('click', () => go(i, true));
+        dotsWrap.appendChild(b);
+        dots.push(b);
       });
     }
 
-    prev?.addEventListener('click', () => goTo(index - 1));
-    next?.addEventListener('click', () => goTo(index + 1));
+    function render() {
+      track.style.transform = `translateX(-${index * 100}%)`;
+      dots.forEach((d, i) => d.classList.toggle('active', i === index));
+    }
 
-    root.addEventListener('mouseenter', () => { paused = true; });
-    root.addEventListener('mouseleave', () => { paused = false; });
+    function go(i, manual) {
+      index = (i + slides.length) % slides.length;
+      render();
+      if (manual) restart();
+    }
 
-    root.addEventListener('touchstart', (event) => {
-      touchStart = event.changedTouches[0].clientX;
-      paused = true;
-    }, { passive: true });
+    function nextSlide() { go(index + 1); }
+    function prevSlide() { go(index - 1); }
 
-    root.addEventListener('touchend', (event) => {
-      const diff = event.changedTouches[0].clientX - touchStart;
-      if (Math.abs(diff) > 40) {
-        if (diff < 0) goTo(index + 1);
-        else goTo(index - 1);
-      }
-      paused = false;
-    }, { passive: true });
+    function restart() {
+      stop();
+      if (slides.length > 1) timer = setInterval(nextSlide, AUTOPLAY);
+    }
+    function stop() { if (timer) { clearInterval(timer); timer = null; } }
 
-    startAuto();
-    return { destroy: stopAuto, goTo };
+    if (next) next.addEventListener('click', () => go(index + 1, true));
+    if (prev) prev.addEventListener('click', () => go(index - 1, true));
+
+    root.addEventListener('mouseenter', stop);
+    root.addEventListener('mouseleave', restart);
+
+    // touch / swipe
+    let startX = 0;
+    let dragging = false;
+    root.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; dragging = true; stop(); }, { passive: true });
+    root.addEventListener('touchend', (e) => {
+      if (!dragging) return;
+      dragging = false;
+      const dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) > 40) { dx < 0 ? nextSlide() : prevSlide(); }
+      restart();
+    });
+
+    // hide controls when single slide
+    if (slides.length <= 1) {
+      if (prev) prev.style.display = 'none';
+      if (next) next.style.display = 'none';
+      if (dotsWrap) dotsWrap.style.display = 'none';
+    }
+
+    render();
+    restart();
+    return { go, next: nextSlide, prev: prevSlide, stop, restart };
   }
 
-  return { init };
+  return { create };
 })();

@@ -1,77 +1,122 @@
-window.LikeGodI18n = (() => {
-  const storageKey = 'likeagod.language';
-  const supportedLanguages = ['en', 'ru', 'zh', 'es'];
-  const languageOptions = [
-    { code: 'en', label: 'EN', name: 'English', flag: '🇺🇸' },
-    { code: 'ru', label: 'RU', name: 'Русский', flag: '🇷🇺' },
-    { code: 'zh', label: 'ZH', name: '中文', flag: '🇨🇳' },
-    { code: 'es', label: 'ES', name: 'Español', flag: '🇪🇸' }
+/* i18n.js — async locale loader with safe fallback.
+   Public API on window.I18n:
+     I18n.loadLocale(lang)  -> Promise, fetches /static/i18n/{lang}.json
+     I18n.t(key, params)    -> string, NEVER returns a dotted path
+     I18n.applyI18n(root)   -> processes data-i18n / data-i18n-html /
+                               data-i18n-placeholder / data-i18n-title
+     I18n.setLanguage(lang) -> load + apply, persists to localStorage
+     I18n.current           -> active language code
+*/
+window.I18n = (() => {
+  const STORAGE_KEY = 'likeagod.language';
+  const SUPPORTED = ['en', 'ru', 'zh', 'es'];
+  const OPTIONS = [
+    { code: 'en', label: 'EN', name: 'English' },
+    { code: 'ru', label: 'RU', name: 'Русский' },
+    { code: 'zh', label: 'ZH', name: '中文' },
+    { code: 'es', label: 'ES', name: 'Español' }
   ];
 
-  function getNestedValue(source, path) {
-    return path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), source);
+  let dict = {};
+  let current = 'en';
+
+  function nested(source, path) {
+    return path.split('.').reduce(
+      (acc, k) => (acc && acc[k] !== undefined ? acc[k] : undefined),
+      source
+    );
   }
 
-  function interpolate(template, params = {}) {
-    return String(template).replace(/\{(\w+)\}/g, (_, key) => params[key] ?? '');
+  function interpolate(str, params) {
+    return String(str).replace(/\{(\w+)\}/g, (_, k) =>
+      params && params[k] !== undefined ? params[k] : ''
+    );
   }
 
-  function detectLanguage(user) {
-    const stored = localStorage.getItem(storageKey);
-    if (stored && supportedLanguages.includes(stored)) return stored;
-    if (user?.language && supportedLanguages.includes(user.language)) return user.language;
-    const browserLang = (navigator.language || 'en').slice(0, 2).toLowerCase();
-    return supportedLanguages.includes(browserLang) ? browserLang : 'en';
+  /**
+   * humanize(key) — user-facing fallback for missing translation keys.
+   * Extracts the last segment of a dotted path and converts camelCase to
+   * Title Case so users never see raw keys like "profile.stats.emptyDuels".
+   * Example: "profile.stats.emptyDuels" → "Empty Duels"
+   * This is a critical user-facing safety net — always returns readable text.
+   */
+  function humanize(key) {
+    const last = String(key).split('.').pop() || key;
+    const spaced = last
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/[_-]+/g, ' ')
+      .trim();
+    return spaced.replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
-  async function loadTranslations(lang) {
-    const selected = supportedLanguages.includes(lang) ? lang : 'en';
-    const response = await fetch(`/static/i18n/${selected}.json`, { credentials: 'same-origin' });
-    if (!response.ok) {
-      if (selected !== 'en') return loadTranslations('en');
-      throw new Error('Unable to load translations');
+  function t(key, params) {
+    if (!key) return '';
+    const value = nested(dict, key);
+    if (typeof value === 'string') return interpolate(value, params || {});
+    // Missing key: warn (dev) and NEVER surface the dotted path.
+    console.warn('[i18n] Missing key:', key);
+    return humanize(key);
+  }
+
+  function detect(user) {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored && SUPPORTED.includes(stored)) return stored;
+    if (user && user.language && SUPPORTED.includes(user.language)) return user.language;
+    const browser = (navigator.language || 'en').slice(0, 2).toLowerCase();
+    return SUPPORTED.includes(browser) ? browser : 'en';
+  }
+
+  async function loadLocale(lang) {
+    const selected = SUPPORTED.includes(lang) ? lang : 'en';
+    try {
+      const res = await fetch(`/static/i18n/${selected}.json`, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error('load failed');
+      dict = await res.json();
+      current = selected;
+    } catch (err) {
+      if (selected !== 'en') return loadLocale('en');
+      console.warn('[i18n] Failed to load dictionary', err);
+      dict = {};
+      current = 'en';
     }
-    const translations = await response.json();
-    localStorage.setItem(storageKey, selected);
-    document.documentElement.lang = selected;
-    return { lang: selected, translations };
+    localStorage.setItem(STORAGE_KEY, current);
+    document.documentElement.lang = current;
+    return current;
   }
 
-  function t(translations, key, params = {}) {
-    const value = getNestedValue(translations, key);
-    if (typeof value === 'string') return interpolate(value, params);
-    return key;
+  function applyI18n(root) {
+    const scope = root || document;
+
+    scope.querySelectorAll('[data-i18n]').forEach((el) => {
+      el.textContent = t(el.dataset.i18n);
+    });
+    scope.querySelectorAll('[data-i18n-html]').forEach((el) => {
+      el.innerHTML = t(el.dataset.i18nHtml);
+    });
+    scope.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+      el.placeholder = t(el.dataset.i18nPlaceholder);
+    });
+    scope.querySelectorAll('[data-i18n-title]').forEach((el) => {
+      el.title = t(el.dataset.i18nTitle);
+    });
   }
 
-  function applyTranslations(translations, root = document) {
-    root.querySelectorAll('[data-i18n]').forEach((element) => {
-      element.textContent = t(translations, element.dataset.i18n);
-    });
-
-    root.querySelectorAll('[data-i18n-html]').forEach((element) => {
-      element.innerHTML = t(translations, element.dataset.i18nHtml);
-    });
-
-    root.querySelectorAll('[data-i18n-placeholder]').forEach((element) => {
-      element.placeholder = t(translations, element.dataset.i18nPlaceholder);
-    });
-
-    root.querySelectorAll('[data-i18n-title]').forEach((element) => {
-      element.title = t(translations, element.dataset.i18nTitle);
-    });
-
-    root.querySelectorAll('[data-i18n-value]').forEach((element) => {
-      element.value = t(translations, element.dataset.i18nValue);
-    });
+  async function setLanguage(lang) {
+    await loadLocale(lang);
+    applyI18n(document);
+    document.dispatchEvent(new CustomEvent('i18n:changed', { detail: { lang: current } }));
+    return current;
   }
 
   return {
-    storageKey,
-    supportedLanguages,
-    languageOptions,
-    detectLanguage,
-    loadTranslations,
-    t,
-    applyTranslations
+    STORAGE_KEY,
+    SUPPORTED,
+    OPTIONS,
+    get current() { return current; },
+    detect,
+    loadLocale,
+    applyI18n,
+    setLanguage,
+    t
   };
 })();

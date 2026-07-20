@@ -3,300 +3,50 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LikeGod.net</title>
+  <title data-i18n="profile.meta.title">LikeGod.net | Profile</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-  <header class="site-header">
-    <div class="site-header__inner">
-      <a class="brand" href="/main">
-        <span class="brand__mark">LG</span>
-        <span class="brand__text">
-          <span class="brand__title">LIKE<span class="brand__title-accent">GOD</span></span>
-          <span class="brand__subtitle" data-i18n="common.brandSubtitle"></span>
-        </span>
-      </a>
-      <div id="navbar"></div>
-    </div>
-  </header>
+<body data-page="profile">
+  <canvas id="fx-canvas" aria-hidden="true"></canvas>
+  <div id="header-root"></div>
 
-  <main class="page-shell">
-    <section class="profile-grid">
-      <div class="stack">
-        <section class="surface">
-          <div class="profile-header">
-            <div style="display:flex; gap:16px; align-items:center; min-width:0;">
-              <div class="avatar-lg"><img id="profile-avatar" src="" alt="avatar"></div>
-              <div style="min-width:0;">
-                <div class="section-title__eyebrow" data-i18n="profile.hero.eyebrow"></div>
-                <h1 class="page-title" id="profile-name">...</h1>
-                <div class="meta-line" id="profile-meta"></div>
-                <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;" id="profile-badges"></div>
-              </div>
-            </div>
+  <main class="page-shell" id="page-content">
+    <section class="section-sm">
+      <div class="container stack">
+        <div class="card-lg" id="profile-root"></div>
+
+        <div>
+          <div class="section-head">
+            <span class="eyebrow" data-i18n="profile.stats.title">Performance snapshot</span>
+            <p data-i18n="profile.stats.subtitle">Public duel metrics and rank indicators.</p>
           </div>
-          <p class="page-subtitle" style="margin-top:14px;" id="profile-bio"></p>
-        </section>
+          <div class="stats-grid" id="stats-root"></div>
+        </div>
 
-        <section class="surface">
-          <div class="section-head"><div><h2 data-i18n="profile.stats.title"></h2><p data-i18n="profile.stats.subtitle"></p></div></div>
-          <div class="stats-grid" id="profile-stats-grid"></div>
-        </section>
-
-        <section class="surface" id="profile-history-card" style="display:none;">
-          <div class="section-head"><div><h2 data-i18n="profile.history.title"></h2><p data-i18n="profile.history.subtitle"></p></div></div>
-          <div class="table-wrap">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th data-i18n="profile.history.columns.date"></th>
-                  <th data-i18n="profile.history.columns.type"></th>
-                  <th data-i18n="profile.history.columns.amount"></th>
-                  <th data-i18n="profile.history.columns.destination"></th>
-                  <th data-i18n="profile.history.columns.status"></th>
-                </tr>
-              </thead>
-              <tbody id="history-rows"></tbody>
-            </table>
-          </div>
-        </section>
+        <div class="stack hidden" id="owner-sections">
+          <div class="card-lg" id="billing-root"></div>
+          <div class="card-lg" id="history-root"></div>
+          <div class="card-lg" id="settings-root"></div>
+        </div>
       </div>
-
-      <aside class="side-panel">
-        <section class="surface" id="profile-billing-card" style="display:none;">
-          <div class="section-head"><div><h2 data-i18n="profile.billing.title"></h2><p data-i18n="profile.billing.subtitle"></p></div></div>
-          <div class="button-row">
-            <button class="btn" type="button" id="profile-deposit-btn" data-i18n="profile.billing.deposit"></button>
-            <button class="btn-secondary" type="button" id="profile-withdraw-btn" data-i18n="profile.billing.withdraw"></button>
-          </div>
-          <div id="active-invoice" class="state-card" style="margin-top:16px;display:none;"></div>
-        </section>
-
-        <section class="surface" id="profile-settings-card" style="display:none;">
-          <div class="section-head"><div><h2 data-i18n="profile.settings.title"></h2><p data-i18n="profile.settings.subtitle"></p></div></div>
-          <div class="form-fields">
-            <div class="form-group">
-              <label for="settings-language" data-i18n="profile.settings.language"></label>
-              <select id="settings-language"></select>
-            </div>
-            <div class="form-group">
-              <label for="settings-theme-toggle" data-i18n="profile.settings.theme"></label>
-              <button type="button" id="settings-theme-toggle" class="theme-toggle" aria-label="Toggle light/dark theme">
-                <span class="theme-toggle__icons"><span>🌙</span><span>☀️</span></span>
-                <span class="theme-toggle__knob"></span>
-              </button>
-            </div>
-            <div class="form-group">
-              <label data-i18n="profile.settings.effects"></label>
-              <div class="switch-row">
-                <button type="button" id="settings-effects-toggle" class="switch-toggle" aria-label="Toggle visual effects"></button>
-                <span id="settings-effects-status"></span>
-              </div>
-            </div>
-            <div class="form-group" id="settings-effects-type-group">
-              <label for="settings-effect-type" data-i18n="profile.settings.effectType"></label>
-              <select id="settings-effect-type">
-                <option value="digital_rain" data-i18n="profile.settings.effectRain"></option>
-                <option value="snow" data-i18n="profile.settings.effectSnow"></option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="settings-bio" data-i18n="profile.settings.bio"></label>
-              <textarea id="settings-bio" data-i18n-placeholder="profile.settings.bioPlaceholder"></textarea>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button class="btn" type="button" id="save-profile-btn" data-i18n="common.actions.save"></button>
-          </div>
-        </section>
-      </aside>
     </section>
   </main>
 
-  <footer class="site-footer" id="footer-shell"></footer>
+  <div id="footer-root"></div>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <div id="modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div id="modal-content" class="modal"></div>
+  </div>
+
   <script src="/static/js/i18n.js"></script>
   <script src="/static/js/theme.js"></script>
-  <script src="/static/js/payments.js"></script>
   <script src="/static/js/effects.js"></script>
+  <script src="/static/js/payments.js"></script>
   <script src="/static/js/slider.js"></script>
   <script src="/static/js/app.js"></script>
-  <script>
-    const profileUsername = window.location.pathname.split('/').pop();
-    let ownProfilePayload = null;
-    let effectsEnabled;
-
-    function fillLanguageSelect(selected) {
-      const languages = ['en', 'ru', 'zh', 'es'];
-      const select = document.getElementById('settings-language');
-      select.innerHTML = languages.map((language) => `<option value="${language}" ${selected === language ? 'selected' : ''}>${language.toUpperCase()}</option>`).join('');
-    }
-
-    function renderProfileStats(stats) {
-      const cards = [
-        { icon: LikeGodApp.icon('chart'), label: LikeGodApp.t('profile.stats.elo'), value: stats.elo },
-        { icon: LikeGodApp.icon('trophy'), label: LikeGodApp.t('profile.stats.rank'), value: LikeGodApp.t('common.rank', { rank: stats.rank }) },
-        { icon: LikeGodApp.icon('sparkles'), label: LikeGodApp.t('profile.stats.winrate'), value: `${stats.winrate}%`, progress: stats.winrate },
-        { icon: LikeGodApp.icon('swords'), label: LikeGodApp.t('profile.stats.duels'), value: stats.duels },
-        { icon: LikeGodApp.icon('shield'), label: LikeGodApp.t('profile.stats.wins'), value: stats.wins },
-        { icon: LikeGodApp.icon('crosshair'), label: LikeGodApp.t('profile.stats.kills'), value: stats.kills },
-        { icon: LikeGodApp.icon('wallet'), label: LikeGodApp.t('profile.stats.deaths'), value: stats.deaths },
-        { icon: LikeGodApp.icon('chart'), label: LikeGodApp.t('profile.stats.kd'), value: stats.deaths ? (stats.kills / stats.deaths).toFixed(2) : stats.kills.toFixed(2) }
-      ];
-      document.getElementById('profile-stats-grid').innerHTML = cards.map((card) => `
-        <article class="stat-card">
-          <div class="duel-card__header">
-            <span class="stat-card__label">${LikeGodApp.escapeHtml(card.label)}</span>
-            <span class="stat-card__icon">${card.icon}</span>
-          </div>
-          <div class="stat-card__value">${LikeGodApp.escapeHtml(String(card.value))}</div>
-          ${card.progress !== undefined ? `<div class="progress" role="progressbar" aria-valuenow="${Math.max(0, Math.min(100, Number(card.progress || 0)))}" aria-valuemin="0" aria-valuemax="100"><span style="width:${Math.max(0, Math.min(100, Number(card.progress || 0)))}%"></span></div>` : ''}
-        </article>
-      `).join('');
-    }
-
-    function renderThemeToggle(theme) {
-      const themeToggle = document.getElementById('settings-theme-toggle');
-      if (!themeToggle) return;
-      themeToggle.classList.toggle('is-light', Number(theme) === 1);
-    }
-
-    function renderEffectsSettings() {
-      const effectsToggle = document.getElementById('settings-effects-toggle');
-      const status = document.getElementById('settings-effects-status');
-      const typeGroup = document.getElementById('settings-effects-type-group');
-      effectsToggle.classList.toggle('is-on', effectsEnabled);
-      status.textContent = effectsEnabled ? LikeGodApp.t('profile.settings.effectsOn') : LikeGodApp.t('profile.settings.effectsOff');
-      typeGroup.style.display = effectsEnabled ? 'grid' : 'none';
-    }
-
-    function renderOwnProfilePanel(me) {
-      document.getElementById('profile-history-card').style.display = 'block';
-      document.getElementById('profile-billing-card').style.display = 'block';
-      document.getElementById('profile-settings-card').style.display = 'block';
-      fillLanguageSelect(me.language || 'en');
-      renderThemeToggle(me.theme ?? 0);
-      document.getElementById('settings-bio').value = ownProfilePayload.bio || '';
-      const effectState = LikeGodApp.getEffectsState();
-      effectsEnabled = effectState.enabled;
-      document.getElementById('settings-effect-type').value = effectState.type || 'digital_rain';
-      renderEffectsSettings();
-      document.getElementById('profile-deposit-btn').onclick = () => LikeGodApp.openPaymentModal('deposit', { onSuccess: loadProfile });
-      document.getElementById('profile-withdraw-btn').onclick = () => LikeGodApp.openPaymentModal('withdraw', { onSuccess: loadProfile });
-      document.getElementById('save-profile-btn').onclick = saveProfileSettings;
-      document.getElementById('settings-theme-toggle').onclick = async () => {
-        const nextTheme = LikeGodApp.getTheme() === 1 ? 0 : 1;
-        await LikeGodApp.setTheme(nextTheme, true);
-        renderThemeToggle(nextTheme);
-      };
-      document.getElementById('settings-effects-toggle').onclick = async () => {
-        effectsEnabled = !effectsEnabled;
-        await LikeGodApp.setEffects(effectsEnabled, document.getElementById('settings-effect-type').value, false);
-        renderEffectsSettings();
-      };
-      document.getElementById('settings-effect-type').onchange = async (event) => {
-        await LikeGodApp.setEffects(effectsEnabled, event.target.value, false);
-      };
-
-      const invoiceBox = document.getElementById('active-invoice');
-      if (me.active_invoice) {
-        invoiceBox.style.display = 'block';
-        invoiceBox.innerHTML = `
-          <strong>${LikeGodApp.escapeHtml(LikeGodApp.t('profile.billing.activeInvoice'))}</strong>
-          <p>${LikeGodApp.escapeHtml(LikeGodApp.t('profile.billing.activeInvoiceText', { amount: LikeGodApp.formatMoney(me.active_invoice.amount) }))}</p>
-          <div class="button-row" style="margin-top:12px;">
-            <a class="btn" target="_blank" rel="noreferrer" href="${LikeGodApp.safeUrl(me.active_invoice.pay_url, '#')}">${LikeGodApp.escapeHtml(LikeGodApp.t('common.actions.pay'))}</a>
-            <button class="btn-ghost" type="button" id="cancel-invoice-btn">${LikeGodApp.escapeHtml(LikeGodApp.t('profile.billing.cancelInvoice'))}</button>
-          </div>
-        `;
-        document.getElementById('cancel-invoice-btn').onclick = cancelInvoice;
-      } else {
-        invoiceBox.style.display = 'none';
-      }
-    }
-
-    async function loadHistory() {
-      try {
-        const history = await LikeGodApp.api('/api/v1/payments/history', { headers: {} });
-        const rows = document.getElementById('history-rows');
-        if (!history.length) {
-          rows.innerHTML = `<tr><td colspan="5">${LikeGodApp.escapeHtml(LikeGodApp.t('common.states.emptyHistory'))}</td></tr>`;
-          return;
-        }
-        rows.innerHTML = history.map((item) => `
-          <tr>
-            <td data-label="${LikeGodApp.escapeHtml(LikeGodApp.t('profile.history.columns.date'))}">${LikeGodApp.escapeHtml(item.date)}</td>
-            <td data-label="${LikeGodApp.escapeHtml(LikeGodApp.t('profile.history.columns.type'))}">${LikeGodApp.escapeHtml(item.type)}</td>
-            <td data-label="${LikeGodApp.escapeHtml(LikeGodApp.t('profile.history.columns.amount'))}">${LikeGodApp.escapeHtml(LikeGodApp.formatMoney(item.amount))}</td>
-            <td data-label="${LikeGodApp.escapeHtml(LikeGodApp.t('profile.history.columns.destination'))}">${LikeGodApp.escapeHtml(item.address || '—')}</td>
-            <td data-label="${LikeGodApp.escapeHtml(LikeGodApp.t('profile.history.columns.status'))}">${LikeGodApp.escapeHtml(LikeGodApp.statusLabel(item.status))}</td>
-          </tr>
-        `).join('');
-      } catch (error) {
-        document.getElementById('history-rows').innerHTML = `<tr><td colspan="5">${LikeGodApp.escapeHtml(error.message)}</td></tr>`;
-      }
-    }
-
-    async function saveProfileSettings() {
-      const button = document.getElementById('save-profile-btn');
-      LikeGodApp.setButtonBusy(button, true, LikeGodApp.t('profile.settings.saving'));
-      try {
-        await LikeGodApp.api('/user/update', {
-          method: 'POST',
-          body: JSON.stringify({
-            language: document.getElementById('settings-language').value,
-            theme: LikeGodApp.getTheme(),
-            effects: effectsEnabled,
-            bio: document.getElementById('settings-bio').value
-          })
-        });
-        await LikeGodApp.setLanguage(document.getElementById('settings-language').value, false);
-        await LikeGodApp.setEffects(effectsEnabled, document.getElementById('settings-effect-type').value, false);
-        LikeGodApp.showToast(LikeGodApp.t('common.toasts.saved'), 'success');
-        await LikeGodApp.refreshSession();
-        await loadProfile();
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      } finally {
-        LikeGodApp.setButtonBusy(button, false);
-      }
-    }
-
-    async function cancelInvoice() {
-      try {
-        await LikeGodApp.api('/api/v1/payments/cancel', { method: 'POST' });
-        LikeGodApp.showToast(LikeGodApp.t('profile.billing.invoiceCancelled'), 'success');
-        await loadProfile();
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      }
-    }
-
-    async function loadProfile() {
-      try {
-        const profile = await LikeGodApp.api(`/user/by-name/${encodeURIComponent(profileUsername)}`, { headers: {} });
-        ownProfilePayload = profile;
-        document.getElementById('profile-avatar').src = LikeGodApp.safeUrl(profile.avatar, '', { allowDataImage: true });
-        document.getElementById('profile-name').textContent = profile.username;
-        document.getElementById('profile-meta').textContent = `${profile.country || '—'} • ${LikeGodApp.t('common.labels.language')}: ${(profile.language || 'en').toUpperCase()}`;
-        document.getElementById('profile-bio').textContent = profile.bio || LikeGodApp.t('profile.hero.emptyBio');
-        document.getElementById('profile-badges').innerHTML = profile.is_premium ? `<span class="badge badge-premium">${LikeGodApp.escapeHtml(LikeGodApp.t('common.nav.premium'))}</span>` : `<span class="badge">${LikeGodApp.escapeHtml(LikeGodApp.t('profile.hero.standard'))}</span>`;
-        renderProfileStats(profile.stats);
-
-        if (profile.is_own_profile) {
-          const me = await LikeGodApp.api('/user/me', { headers: {} });
-          renderOwnProfilePanel(me);
-          await loadHistory();
-        }
-      } catch (error) {
-        document.querySelector('.page-shell').innerHTML = `<section class="surface"><div class="state-card">${LikeGodApp.escapeHtml(error.message)}</div></section>`;
-      }
-    }
-
-    document.addEventListener('likeagod:language-changed', loadProfile);
-    LikeGodApp.boot({ titleKey: 'profile.meta.title', onReady: loadProfile });
-  </script>
+  <script>App.start('profile');</script>
 </body>
 </html>

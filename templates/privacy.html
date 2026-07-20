@@ -3,41 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LikeGod.net</title>
+  <title data-i18n="legal.privacy.metaTitle">LikeGod.net | Privacy</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-  <header class="site-header">
-    <div class="site-header__inner">
-      <a class="brand" href="/main">
-        <span class="brand__mark">LG</span>
-        <span class="brand__text">
-          <span class="brand__title">LIKE<span class="brand__title-accent">GOD</span></span>
-          <span class="brand__subtitle" data-i18n="common.brandSubtitle"></span>
-        </span>
-      </a>
-      <div id="navbar"></div>
-    </div>
-  </header>
-  <main class="page-shell">
-    <article class="legal-card">
-      <div class="section-title__eyebrow" data-i18n="legal.common.eyebrow"></div>
-      <h1 data-i18n="legal.privacy.title"></h1>
-      <p class="page-subtitle" data-i18n="legal.privacy.updated"></p>
-      <div class="hr" style="margin:20px 0;"></div>
-      <div class="legal-content" data-i18n-html="legal.privacy.body"></div>
-    </article>
+<body data-page="legal">
+  <canvas id="fx-canvas" aria-hidden="true"></canvas>
+  <div id="header-root"></div>
+
+  <main class="page-shell" id="page-content">
+    <section class="section-sm">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow" data-i18n="legal.common.eyebrow">Legal</span>
+          <h1 data-i18n="legal.privacy.title">Privacy policy</h1>
+          <p data-i18n="legal.privacy.updated">Data handling overview</p>
+        </div>
+        <div class="legal-body" data-i18n-html="legal.privacy.body"></div>
+      </div>
+    </section>
   </main>
-  <footer class="site-footer" id="footer-shell"></footer>
+
+  <div id="footer-root"></div>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <div id="modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div id="modal-content" class="modal"></div>
+  </div>
+
   <script src="/static/js/i18n.js"></script>
   <script src="/static/js/theme.js"></script>
-  <script src="/static/js/payments.js"></script>
   <script src="/static/js/effects.js"></script>
+  <script src="/static/js/payments.js"></script>
   <script src="/static/js/slider.js"></script>
   <script src="/static/js/app.js"></script>
-  <script>LikeGodApp.boot({ titleKey: 'legal.privacy.metaTitle' });</script>
+  <script>App.start('legal');</script>
 </body>
 </html>

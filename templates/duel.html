@@ -3,254 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LikeGod.net</title>
+  <title data-i18n="duel.meta.title">LikeGod.net | Duel room</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-  <header class="site-header">
-    <div class="site-header__inner">
-      <a class="brand" href="/main">
-        <span class="brand__mark">LG</span>
-        <span class="brand__text">
-          <span class="brand__title">LIKE<span class="brand__title-accent">GOD</span></span>
-          <span class="brand__subtitle" data-i18n="common.brandSubtitle"></span>
-        </span>
-      </a>
-      <div id="navbar"></div>
-    </div>
-  </header>
+<body data-page="duel">
+  <canvas id="fx-canvas" aria-hidden="true"></canvas>
+  <div id="header-root"></div>
 
-  <main class="page-shell">
-    <section class="duel-grid">
-      <section class="surface">
-        <div class="section-head">
-          <div>
-            <span class="section-title__eyebrow" data-i18n="duel.hero.eyebrow"></span>
-            <h1 class="page-title"><span data-i18n="duel.hero.title"></span> #<span id="duel-id-text">...</span></h1>
-            <p class="page-subtitle" data-i18n="duel.hero.subtitle"></p>
-          </div>
-          <span class="status-badge" id="duel-status">...</span>
-        </div>
-
-        <div class="duel-score">
-          <div>
-            <a id="creator-link" class="inline-link" href="#">Creator</a>
-            <div class="meta-line" id="creator-meta"></div>
-          </div>
-          <div class="duel-score__value"><span id="creator-score">0</span> : <span id="guest-score">0</span></div>
-          <div style="text-align:right;">
-            <a id="guest-link" class="inline-link" href="#">Guest</a>
-            <div class="meta-line" id="guest-meta"></div>
-          </div>
-        </div>
-
-        <div class="stats-grid" style="margin-top:18px;">
-          <div class="stat-card"><div class="stat-card__label" data-i18n="duel.info.bank"></div><div class="stat-card__value" id="duel-bank">$0.00</div></div>
-          <div class="stat-card"><div class="stat-card__label" data-i18n="duel.info.map"></div><div class="stat-card__value" id="duel-map">aim_redline</div></div>
-          <div class="stat-card"><div class="stat-card__label" data-i18n="duel.info.creatorShare"></div><div class="stat-card__value" id="creator-share">$0.00</div></div>
-          <div class="stat-card"><div class="stat-card__label" data-i18n="duel.info.guestShare"></div><div class="stat-card__value" id="guest-share">$0.00</div></div>
-        </div>
-      </section>
-
-      <aside class="side-panel">
-        <section class="surface">
-          <div class="section-head"><div><h2 data-i18n="duel.actions.title"></h2><p data-i18n="duel.actions.subtitle"></p></div></div>
-          <div class="list-stack" id="duel-action-list">
-            <div class="state-card" data-i18n="common.states.loading"></div>
-          </div>
-        </section>
-
-        <section class="surface">
-          <div class="section-head"><div><h2 data-i18n="duel.requests.title"></h2><p data-i18n="duel.requests.subtitle"></p></div></div>
-          <div id="requests-list" class="request-list">
-            <div class="state-card" data-i18n="common.states.loading"></div>
-          </div>
-        </section>
-      </aside>
+  <main class="page-shell" id="page-content">
+    <section class="section-sm">
+      <div class="container stack">
+        <div id="duel-header"></div>
+        <div class="vs-layout" id="duel-vs"></div>
+        <div class="card-lg" id="duel-actions"></div>
+        <div class="card-lg hidden" id="requests-panel"></div>
+      </div>
     </section>
   </main>
 
-  <footer class="site-footer" id="footer-shell"></footer>
+  <div id="footer-root"></div>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <div id="modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div id="modal-content" class="modal"></div>
+  </div>
+
   <script src="/static/js/i18n.js"></script>
   <script src="/static/js/theme.js"></script>
-  <script src="/static/js/payments.js"></script>
   <script src="/static/js/effects.js"></script>
+  <script src="/static/js/payments.js"></script>
   <script src="/static/js/slider.js"></script>
   <script src="/static/js/app.js"></script>
-  <script>
-    const duelId = new URLSearchParams(window.location.search).get('id');
-    let duelData = null;
-    let refreshTimer = null;
-
-    function setStatusBadge(status) {
-      const badge = document.getElementById('duel-status');
-      badge.textContent = LikeGodApp.statusLabel(status);
-      badge.className = `status-badge ${status === 'completed' ? 'badge-success' : status === 'disputed' ? 'badge-danger' : status === 'processing' ? 'badge-premium' : 'badge-live'}`;
-    }
-
-    function fillDuel(data) {
-      duelData = data;
-      document.getElementById('duel-id-text').textContent = duelId || '—';
-      document.getElementById('creator-link').textContent = data.creator_username;
-      document.getElementById('creator-link').href = `/p/${encodeURIComponent(data.creator_username)}`;
-      document.getElementById('creator-meta').textContent = `${LikeGodApp.t('common.labels.elo')}: ${data.creator_elo} • ${LikeGodApp.t('common.rank', { rank: data.creator_rank })}`;
-      document.getElementById('guest-link').textContent = data.guest_username || LikeGodApp.t('duel.guestWaiting');
-      document.getElementById('guest-link').href = data.guest_username ? `/p/${encodeURIComponent(data.guest_username)}` : '#';
-      document.getElementById('guest-meta').textContent = data.guest_username ? `${LikeGodApp.t('common.labels.elo')}: ${data.guest_elo} • ${LikeGodApp.t('common.rank', { rank: data.guest_rank })}` : LikeGodApp.t('duel.slotOpen');
-      document.getElementById('creator-score').textContent = data.creator_score;
-      document.getElementById('guest-score').textContent = data.guest_score;
-      document.getElementById('duel-bank').textContent = LikeGodApp.formatMoney(data.total_bank);
-      document.getElementById('duel-map').textContent = data.map_name;
-      document.getElementById('creator-share').textContent = LikeGodApp.formatMoney(data.creator_share);
-      document.getElementById('guest-share').textContent = LikeGodApp.formatMoney(data.guest_share);
-      setStatusBadge(data.status);
-      renderActions();
-      renderRequests();
-    }
-
-    function actionButton(className, id, labelKey) {
-      return `<button class="${className}" type="button" id="${id}">${LikeGodApp.escapeHtml(LikeGodApp.t(labelKey))}</button>`;
-    }
-
-    function renderActions() {
-      const container = document.getElementById('duel-action-list');
-      const user = LikeGodApp.getUser();
-      const actions = [];
-      const isCreator = user && duelData && user.id === duelData.creator_id;
-      const isGuest = user && duelData && user.id === duelData.guest_id;
-
-      if (!user) {
-        actions.push(`<a class="steam-btn" href="/auth/steam">${LikeGodApp.escapeHtml(LikeGodApp.t('common.nav.loginSteam'))}</a>`);
-      } else if (duelData.status === 'waiting' && !isCreator && !duelData.guest_id) {
-        actions.push(actionButton('btn', 'join-request-btn', 'duel.actions.join'));
-      }
-
-      if (isCreator && duelData.status === 'waiting') {
-        actions.push(actionButton('btn-danger', 'cancel-duel-btn', 'duel.actions.cancel'));
-      }
-
-      if ((isCreator || isGuest) && ['ready', 'playing', 'processing'].includes(duelData.status)) {
-        actions.push(actionButton('btn', 'confirm-duel-btn', 'duel.actions.confirm'));
-        actions.push(actionButton('btn-ghost', 'dispute-duel-btn', 'duel.actions.dispute'));
-      }
-
-      container.innerHTML = actions.length ? actions.join('') : `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('duel.actions.noActions'))}</div>`;
-      document.getElementById('join-request-btn')?.addEventListener('click', submitJoinRequest);
-      document.getElementById('cancel-duel-btn')?.addEventListener('click', cancelLobby);
-      document.getElementById('confirm-duel-btn')?.addEventListener('click', confirmResult);
-      document.getElementById('dispute-duel-btn')?.addEventListener('click', disputeMatch);
-    }
-
-    async function renderRequests() {
-      const container = document.getElementById('requests-list');
-      const user = LikeGodApp.getUser();
-      if (!user || !duelData || user.id !== duelData.creator_id || duelData.status !== 'waiting') {
-        container.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('duel.requests.hidden'))}</div>`;
-        return;
-      }
-
-      try {
-        const requests = await LikeGodApp.api(`/api/v1/duels/${duelId}/requests`, { headers: {} });
-        if (!requests.length) {
-          container.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('common.states.emptyRequests'))}</div>`;
-          return;
-        }
-        container.innerHTML = requests.map((request) => `
-          <article class="duel-card">
-            <div class="duel-card__creator">
-              ${LikeGodApp.avatarMarkup(request.username, request.avatar, 'avatar')}
-              <div>
-                <h3>${LikeGodApp.escapeHtml(request.username)}</h3>
-                <div class="meta-line">${LikeGodApp.escapeHtml(LikeGodApp.t('common.labels.elo'))}: ${request.elo} • ${LikeGodApp.escapeHtml(LikeGodApp.t('common.rank', { rank: request.rank }))}</div>
-              </div>
-            </div>
-            <div class="duel-card__footer">
-              <div class="meta-chip">${LikeGodApp.icon('shield')} ${LikeGodApp.escapeHtml(LikeGodApp.t('duel.requests.subtitle'))}</div>
-              <button class="btn" type="button" data-accept-request="${request.request_id}">${LikeGodApp.escapeHtml(LikeGodApp.t('duel.requests.accept'))}</button>
-            </div>
-          </article>
-        `).join('');
-        container.querySelectorAll('[data-accept-request]').forEach((button) => button.addEventListener('click', () => acceptRequest(button.dataset.acceptRequest)));
-      } catch (error) {
-        container.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(error.message)}</div>`;
-      }
-    }
-
-    async function loadDuel() {
-      if (!duelId) {
-        document.getElementById('duel-action-list').innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('duel.invalidId'))}</div>`;
-        return;
-      }
-      try {
-        const data = await LikeGodApp.api(`/api/v1/duels/${duelId}`, { headers: {} });
-        fillDuel(data);
-      } catch (error) {
-        document.getElementById('duel-action-list').innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(error.message)}</div>`;
-        document.getElementById('requests-list').innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(error.message)}</div>`;
-      }
-    }
-
-    async function submitJoinRequest() {
-      try {
-        await LikeGodApp.api(`/api/v1/duels/${duelId}/request`, { method: 'POST' });
-        LikeGodApp.showToast(LikeGodApp.t('duel.toasts.requestSent'), 'success');
-        await loadDuel();
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      }
-    }
-
-    async function cancelLobby() {
-      try {
-        await LikeGodApp.api(`/api/v1/duels/${duelId}/cancel`, { method: 'DELETE' });
-        LikeGodApp.showToast(LikeGodApp.t('duel.toasts.cancelled'), 'success');
-        window.location.href = '/main';
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      }
-    }
-
-    async function acceptRequest(requestId) {
-      try {
-        await LikeGodApp.api(`/api/v1/requests/${requestId}/accept`, { method: 'POST' });
-        LikeGodApp.showToast(LikeGodApp.t('duel.toasts.accepted'), 'success');
-        await loadDuel();
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      }
-    }
-
-    async function confirmResult() {
-      try {
-        await LikeGodApp.api(`/api/v1/duels/${duelId}/confirm`, { method: 'POST' });
-        LikeGodApp.showToast(LikeGodApp.t('duel.toasts.confirmed'), 'success');
-        await loadDuel();
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      }
-    }
-
-    async function disputeMatch() {
-      try {
-        await LikeGodApp.api(`/api/v1/duels/${duelId}/dispute`, { method: 'POST' });
-        LikeGodApp.showToast(LikeGodApp.t('duel.toasts.disputed'), 'warning');
-        await loadDuel();
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      }
-    }
-
-    async function initDuelPage() {
-      await loadDuel();
-      if (refreshTimer) clearInterval(refreshTimer);
-      refreshTimer = setInterval(loadDuel, 5000);
-    }
-
-    document.addEventListener('likeagod:language-changed', initDuelPage);
-    LikeGodApp.boot({ titleKey: 'duel.meta.title', onReady: initDuelPage });
-  </script>
+  <script>App.start('duel');</script>
 </body>
 </html>

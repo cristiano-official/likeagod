@@ -3,223 +3,135 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LikeGod.net</title>
+  <title data-i18n="admin.meta.title">LikeGod.net | Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-  <header class="site-header">
-    <div class="site-header__inner">
-      <a class="brand" href="/main">
-        <span class="brand__mark">LG</span>
-        <span class="brand__text">
-          <span class="brand__title">LIKE<span class="brand__title-accent">GOD</span></span>
-          <span class="brand__subtitle" data-i18n="admin.hero.eyebrow"></span>
-        </span>
-      </a>
-      <div id="navbar"></div>
-    </div>
-  </header>
+<body data-page="admin">
+  <canvas id="fx-canvas" aria-hidden="true"></canvas>
+  <div id="header-root"></div>
 
-  <main class="page-shell">
-    <section class="surface">
-      <div class="section-head">
-        <div>
-          <span class="section-title__eyebrow" data-i18n="admin.hero.eyebrow"></span>
-          <h1 class="page-title" data-i18n="admin.hero.title"></h1>
-          <p class="page-subtitle" data-i18n="admin.hero.subtitle"></p>
+  <main class="page-shell" id="page-content">
+    <section class="section-sm">
+      <div class="container stack">
+        <div class="section-head">
+          <span class="eyebrow" data-i18n="admin.hero.eyebrow">Operations</span>
+          <h1 data-i18n="admin.hero.title">Admin command panel</h1>
+          <p data-i18n="admin.hero.subtitle">Moderate content, adjust balances, configure tariffs.</p>
         </div>
-      </div>
-    </section>
 
-    <section class="admin-grid" style="margin-top:20px;">
-      <div class="stack">
-        <section class="surface">
-          <div class="section-head"><div><h2 data-i18n="admin.users.title"></h2><p data-i18n="admin.users.subtitle"></p></div></div>
-          <div class="form-grid">
-            <div class="form-group"><label for="admin-user-target" data-i18n="admin.users.target"></label><input id="admin-user-target" type="text" data-i18n-placeholder="admin.users.targetPlaceholder"></div>
-            <div class="form-group"><label for="admin-amount" data-i18n="admin.users.amount"></label><input id="admin-amount" type="number" value="10" step="0.5"></div>
-          </div>
-          <div class="button-row"><button class="btn" type="button" id="admin-add-balance" data-i18n="admin.users.addBalance"></button><button class="btn-secondary" type="button" id="admin-set-elo" data-i18n="admin.users.setElo"></button></div>
-        </section>
+        <div id="admin-guard" class="hidden"></div>
 
-        <section class="surface">
-          <div class="section-head"><div><h2 data-i18n="admin.news.title"></h2><p data-i18n="admin.news.subtitle"></p></div></div>
-          <div class="form-fields">
-            <div class="form-group"><label for="news-title" data-i18n="admin.news.form.title"></label><input id="news-title" type="text"></div>
-            <div class="form-group"><label for="news-image-url" data-i18n="admin.news.form.image"></label><input id="news-image-url" type="text"></div>
-            <div class="form-grid">
-              <div class="form-group"><label for="news-btn-text" data-i18n="admin.news.form.buttonText"></label><input id="news-btn-text" type="text"></div>
-              <div class="form-group"><label for="news-btn-url" data-i18n="admin.news.form.buttonUrl"></label><input id="news-btn-url" type="text"></div>
+        <div id="admin-content" class="grid-2">
+          <!-- User adjustments -->
+          <div class="card-lg">
+            <span class="eyebrow" data-i18n="admin.users.title">User adjustments</span>
+            <p style="margin-bottom:16px" data-i18n="admin.users.subtitle">Target a username or SteamID.</p>
+            <div class="stack-sm">
+              <div class="form-group">
+                <label class="form-label" data-i18n="admin.users.target">Target player</label>
+                <input class="form-input" id="adm-target" data-i18n-placeholder="admin.users.targetPlaceholder">
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="admin.users.amount">Amount</label>
+                <input class="form-input" id="adm-amount" type="number" step="0.01" placeholder="0">
+              </div>
+              <div class="form-actions">
+                <button class="btn" id="adm-balance" data-i18n="admin.users.addBalance">Add balance</button>
+                <button class="btn-secondary" id="adm-elo" data-i18n="admin.users.setElo">Set ELO</button>
+              </div>
             </div>
           </div>
-          <div class="form-actions"><button class="btn" type="button" id="news-submit-btn" data-i18n="admin.news.form.submit"></button></div>
-        </section>
 
-        <section class="surface">
-          <div class="section-head"><div><h2 data-i18n="admin.news.listTitle"></h2></div></div>
-          <div id="admin-news-list" class="duel-list"><div class="state-card" data-i18n="common.states.loading"></div></div>
-        </section>
-      </div>
-
-      <div class="stack">
-        <section class="surface">
-          <div class="section-head"><div><h2 data-i18n="admin.tariffs.title"></h2><p data-i18n="admin.tariffs.subtitle"></p></div></div>
-          <div class="form-fields">
-            <div class="form-group"><label for="tariff-duration" data-i18n="admin.tariffs.duration"></label><select id="tariff-duration"><option value="1">1</option><option value="3">3</option><option value="12">12</option></select></div>
-            <div class="form-group"><label for="tariff-price" data-i18n="admin.tariffs.price"></label><input id="tariff-price" type="number" step="0.01"></div>
-            <div class="form-group"><label for="tariff-discount" data-i18n="admin.tariffs.discount"></label><input id="tariff-discount" type="text"></div>
+          <!-- Announcement composer -->
+          <div class="card-lg">
+            <span class="eyebrow" data-i18n="admin.news.title">Announcement composer</span>
+            <p style="margin-bottom:16px" data-i18n="admin.news.subtitle">Create platform news cards.</p>
+            <div class="stack-sm">
+              <div class="form-group">
+                <label class="form-label" data-i18n="admin.news.form.title">Title</label>
+                <input class="form-input" id="adm-news-title">
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="admin.news.form.image">Banner image URL</label>
+                <input class="form-input" id="adm-news-image">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" data-i18n="admin.news.form.buttonText">Button text</label>
+                  <input class="form-input" id="adm-news-btntext">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" data-i18n="admin.news.form.buttonUrl">Button URL</label>
+                  <input class="form-input" id="adm-news-btnurl">
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="btn" id="adm-news-submit" data-i18n="admin.news.form.submit">Publish announcement</button>
+              </div>
+            </div>
+            <h3 style="margin:24px 0 12px" data-i18n="admin.news.listTitle">Active announcements</h3>
+            <div class="stack-sm" id="adm-news-list"></div>
           </div>
-          <div class="form-actions"><button class="btn-secondary" type="button" id="tariff-submit-btn" data-i18n="admin.tariffs.submit"></button></div>
-        </section>
 
-        <section class="surface">
-          <div class="section-head"><div><h2 data-i18n="admin.commission.title"></h2><p data-i18n="admin.commission.subtitle"></p></div></div>
-          <div class="form-group"><label for="admin-commission" data-i18n="admin.commission.label"></label><input id="admin-commission" type="number" step="0.5" min="0" max="100"></div>
-          <div class="form-actions"><button class="btn" type="button" id="commission-submit-btn" data-i18n="admin.commission.submit"></button></div>
-        </section>
+          <!-- Premium tariffs -->
+          <div class="card-lg">
+            <span class="eyebrow" data-i18n="admin.tariffs.title">Premium tariffs</span>
+            <p style="margin-bottom:16px" data-i18n="admin.tariffs.subtitle">Maintain the premium storefront.</p>
+            <div class="stack-sm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" data-i18n="admin.tariffs.duration">Duration (months)</label>
+                  <input class="form-input" id="adm-tariff-duration" type="number" min="1" placeholder="1">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" data-i18n="admin.tariffs.price">Price</label>
+                  <input class="form-input" id="adm-tariff-price" type="number" step="0.01" placeholder="0">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="admin.tariffs.discount">Discount label</label>
+                <input class="form-input" id="adm-tariff-discount">
+              </div>
+              <div class="form-actions">
+                <button class="btn" id="adm-tariff-submit" data-i18n="admin.tariffs.submit">Save tariff</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Commission -->
+          <div class="card-lg">
+            <span class="eyebrow" data-i18n="admin.commission.title">Platform commission</span>
+            <p style="margin-bottom:16px" data-i18n="admin.commission.subtitle">Used for duel settlement.</p>
+            <div class="stack-sm">
+              <div class="form-group">
+                <label class="form-label" data-i18n="admin.commission.label">Commission percent</label>
+                <input class="form-input" id="adm-commission" type="number" min="0" max="100" step="0.1" placeholder="10">
+              </div>
+              <div class="form-actions">
+                <button class="btn" id="adm-commission-submit" data-i18n="admin.commission.submit">Save commission</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   </main>
 
-  <footer class="site-footer" id="footer-shell"></footer>
+  <div id="footer-root"></div>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <div id="modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div id="modal-content" class="modal"></div>
+  </div>
+
   <script src="/static/js/i18n.js"></script>
   <script src="/static/js/theme.js"></script>
-  <script src="/static/js/payments.js"></script>
   <script src="/static/js/effects.js"></script>
+  <script src="/static/js/payments.js"></script>
   <script src="/static/js/slider.js"></script>
   <script src="/static/js/app.js"></script>
-  <script>
-    async function ensureAdmin() {
-      const user = LikeGodApp.getUser();
-      if (!user || user.role !== 'admin') {
-        LikeGodApp.showToast(LikeGodApp.t('admin.errors.forbidden'), 'error');
-        setTimeout(() => { window.location.href = '/main'; }, 600);
-        return false;
-      }
-      return true;
-    }
-
-    async function loadNews() {
-      try {
-        const news = await LikeGodApp.api('/news', { headers: {} });
-        const target = document.getElementById('admin-news-list');
-        if (!news.length) {
-          target.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('common.states.emptyNews'))}</div>`;
-          return;
-        }
-        target.innerHTML = news.map((item) => `
-          <article class="duel-card">
-            <div>
-              <span class="badge">${LikeGodApp.escapeHtml(new Date(item.created_at).toLocaleDateString())}</span>
-              <h3 style="margin:10px 0 6px;">${LikeGodApp.escapeHtml(item.title)}</h3>
-              <div class="meta-line">${LikeGodApp.escapeHtml(item.image_path || '—')}</div>
-            </div>
-            <div class="duel-card__footer">
-              ${item.btn_url ? `<a class="btn-ghost" href="${LikeGodApp.safeUrl(item.btn_url, '#')}" target="_blank" rel="noreferrer">${LikeGodApp.escapeHtml(item.btn_text || LikeGodApp.t('common.actions.open'))}</a>` : '<span class="meta-line">—</span>'}
-              <button class="btn-danger" type="button" data-news-delete="${item.id}">${LikeGodApp.escapeHtml(LikeGodApp.t('common.actions.delete'))}</button>
-            </div>
-          </article>
-        `).join('');
-        target.querySelectorAll('[data-news-delete]').forEach((button) => button.addEventListener('click', () => deleteNews(button.dataset.newsDelete)));
-      } catch (error) {
-        document.getElementById('admin-news-list').innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(error.message)}</div>`;
-      }
-    }
-
-    async function submitNews() {
-      const button = document.getElementById('news-submit-btn');
-      LikeGodApp.setButtonBusy(button, true, LikeGodApp.t('admin.news.form.submitLoading'));
-      try {
-        await LikeGodApp.api('/news/create', {
-          method: 'POST',
-          body: JSON.stringify({
-            title: document.getElementById('news-title').value,
-            image_path: document.getElementById('news-image-url').value,
-            btn_text: document.getElementById('news-btn-text').value || null,
-            btn_url: document.getElementById('news-btn-url').value || null
-          })
-        });
-        LikeGodApp.showToast(LikeGodApp.t('admin.toasts.newsSaved'), 'success');
-        await loadNews();
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      } finally {
-        LikeGodApp.setButtonBusy(button, false);
-      }
-    }
-
-    async function deleteNews(id) {
-      try {
-        await LikeGodApp.api(`/news/${id}`, { method: 'DELETE' });
-        LikeGodApp.showToast(LikeGodApp.t('admin.toasts.newsDeleted'), 'success');
-        await loadNews();
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      }
-    }
-
-    async function adjustBalance() {
-      try {
-        const payload = { target: document.getElementById('admin-user-target').value, amount: Number(document.getElementById('admin-amount').value || 0) };
-        const result = await LikeGodApp.api('/api/v1/admin/adjust-balance', { method: 'POST', body: JSON.stringify(payload) });
-        LikeGodApp.showToast(result.message, 'success');
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      }
-    }
-
-    async function adjustElo() {
-      try {
-        const payload = { target: document.getElementById('admin-user-target').value, amount: Number(document.getElementById('admin-amount').value || 0) };
-        const result = await LikeGodApp.api('/api/v1/admin/adjust-elo', { method: 'POST', body: JSON.stringify(payload) });
-        LikeGodApp.showToast(result.message, 'success');
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      }
-    }
-
-    async function updateTariff() {
-      try {
-        await LikeGodApp.api('/api/v1/admin/tariffs', {
-          method: 'POST',
-          body: JSON.stringify({
-            duration_months: Number(document.getElementById('tariff-duration').value),
-            price: Number(document.getElementById('tariff-price').value || 0),
-            discount_text: document.getElementById('tariff-discount').value || null
-          })
-        });
-        LikeGodApp.showToast(LikeGodApp.t('admin.toasts.tariffSaved'), 'success');
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      }
-    }
-
-    async function updateCommission() {
-      try {
-        const result = await LikeGodApp.api('/api/v1/admin/commission', {
-          method: 'POST',
-          body: JSON.stringify({ commission_percent: Number(document.getElementById('admin-commission').value || 0) })
-        });
-        LikeGodApp.showToast(`${LikeGodApp.t('admin.toasts.commissionSaved')} ${result.commission_percent}%`, 'success');
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      }
-    }
-
-    async function initAdminPage() {
-      if (!await ensureAdmin()) return;
-      document.getElementById('news-submit-btn').addEventListener('click', submitNews);
-      document.getElementById('admin-add-balance').addEventListener('click', adjustBalance);
-      document.getElementById('admin-set-elo').addEventListener('click', adjustElo);
-      document.getElementById('tariff-submit-btn').addEventListener('click', updateTariff);
-      document.getElementById('commission-submit-btn').addEventListener('click', updateCommission);
-      loadNews();
-    }
-
-    LikeGodApp.boot({ titleKey: 'admin.meta.title', onReady: initAdminPage });
-  </script>
+  <script>App.start('admin');</script>
 </body>
 </html>

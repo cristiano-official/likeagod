@@ -3,116 +3,50 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LikeGod.net</title>
+  <title data-i18n="premium.meta.title">LikeGod.net | Premium</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-  <header class="site-header">
-    <div class="site-header__inner">
-      <a class="brand" href="/main">
-        <span class="brand__mark">LG</span>
-        <span class="brand__text">
-          <span class="brand__title">LIKE<span class="brand__title-accent">GOD</span></span>
-          <span class="brand__subtitle" data-i18n="common.brandSubtitle"></span>
-        </span>
-      </a>
-      <div id="navbar"></div>
-    </div>
-  </header>
+<body data-page="premium">
+  <canvas id="fx-canvas" aria-hidden="true"></canvas>
+  <div id="header-root"></div>
 
-  <main class="page-shell">
-    <section class="hero-banner">
-      <div class="hero-copy">
-        <span class="hero-badge" data-i18n="premium.hero.eyebrow"></span>
-        <h1 data-i18n-html="premium.hero.titleHtml"></h1>
-        <p data-i18n="premium.hero.subtitle"></p>
+  <main class="page-shell" id="page-content">
+    <section class="section-sm">
+      <div class="container stack">
+        <div class="section-head">
+          <span class="eyebrow" data-i18n="premium.hero.eyebrow">Premium access</span>
+          <h1 data-i18n="premium.hero.title">Upgrade your duel profile</h1>
+          <p data-i18n="premium.hero.subtitle">Highlight your account and keep premium status visible.</p>
+        </div>
+
+        <div id="premium-status"></div>
+
+        <div>
+          <div class="section-head">
+            <span class="eyebrow" data-i18n="premium.cards.title">Tariff storefront</span>
+            <p data-i18n="premium.cards.subtitle">All cards are loaded from the backend tariffs table.</p>
+          </div>
+          <div class="tariff-grid" id="tariff-grid"></div>
+        </div>
       </div>
-      <aside class="hero-session" id="premium-status-card">
-        <div class="section-head"><div><h2 data-i18n="premium.status.title"></h2></div></div>
-        <div class="state-card" data-i18n="common.states.loading"></div>
-      </aside>
-    </section>
-
-    <section class="surface" style="margin-top:20px;">
-      <div class="section-head"><div><h2 data-i18n="premium.cards.title"></h2><p data-i18n="premium.cards.subtitle"></p></div></div>
-      <div class="tariff-grid" id="tariffs-list"><div class="state-card" data-i18n="common.states.loading"></div></div>
     </section>
   </main>
 
-  <footer class="site-footer" id="footer-shell"></footer>
+  <div id="footer-root"></div>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <div id="modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div id="modal-content" class="modal"></div>
+  </div>
+
   <script src="/static/js/i18n.js"></script>
   <script src="/static/js/theme.js"></script>
-  <script src="/static/js/payments.js"></script>
   <script src="/static/js/effects.js"></script>
+  <script src="/static/js/payments.js"></script>
   <script src="/static/js/slider.js"></script>
   <script src="/static/js/app.js"></script>
-  <script>
-    let me = null;
-
-    function renderStatus() {
-      const target = document.getElementById('premium-status-card');
-      if (!me) {
-        target.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('premium.status.guest'))}</div>`;
-        return;
-      }
-      if (me.is_premium && me.premium_until) {
-        target.innerHTML = `<div class="stat-card"><div class="stat-card__label">${LikeGodApp.escapeHtml(LikeGodApp.t('premium.status.active'))}</div><div class="stat-card__value">${LikeGodApp.escapeHtml(new Date(me.premium_until).toLocaleDateString())}</div></div>`;
-      } else {
-        target.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('premium.status.inactive'))}</div>`;
-      }
-    }
-
-    async function loadPremium() {
-      try {
-        if (LikeGodApp.getUser()) {
-          me = await LikeGodApp.api('/user/me', { headers: {} });
-        }
-      } catch (error) {
-        me = null;
-      }
-      renderStatus();
-
-      try {
-        const tariffs = await LikeGodApp.api('/api/v1/premium/tariffs', { headers: {} });
-        const target = document.getElementById('tariffs-list');
-        if (!tariffs.length) {
-          target.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('common.states.emptyTariffs'))}</div>`;
-          return;
-        }
-        target.innerHTML = tariffs.map((tariff) => `
-          <article class="tariff-card">
-            ${tariff.discount_text ? `<span class="badge badge-premium">${LikeGodApp.escapeHtml(tariff.discount_text)}</span>` : ''}
-            <h3>${LikeGodApp.escapeHtml(LikeGodApp.t('premium.cards.months', { months: tariff.duration_months }))}</h3>
-            <div class="tariff-card__price">${LikeGodApp.escapeHtml(LikeGodApp.formatMoney(tariff.price))}</div>
-            <p class="tariff-card__meta">${LikeGodApp.escapeHtml(LikeGodApp.t('premium.cards.cardText'))}</p>
-            <button class="btn-premium" type="button" data-buy-tariff="${tariff.id}" ${me?.is_premium ? 'disabled' : ''}>${LikeGodApp.escapeHtml(LikeGodApp.t('premium.cards.buy'))}</button>
-          </article>
-        `).join('');
-        target.querySelectorAll('[data-buy-tariff]').forEach((button) => button.addEventListener('click', () => buyPremium(button.dataset.buyTariff)));
-      } catch (error) {
-        document.getElementById('tariffs-list').innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(error.message)}</div>`;
-      }
-    }
-
-    async function buyPremium(tariffId) {
-      const button = document.querySelector(`[data-buy-tariff="${tariffId}"]`);
-      LikeGodApp.setButtonBusy(button, true, LikeGodApp.t('premium.cards.buyLoading'));
-      try {
-        await LikeGodApp.api('/api/v1/premium/buy', { method: 'POST', body: JSON.stringify({ tariff_id: Number(tariffId) }) });
-        LikeGodApp.showToast(LikeGodApp.t('premium.toasts.purchased'), 'success');
-        await loadPremium();
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      } finally {
-        LikeGodApp.setButtonBusy(button, false);
-      }
-    }
-
-    document.addEventListener('likeagod:language-changed', loadPremium);
-    LikeGodApp.boot({ titleKey: 'premium.meta.title', onReady: loadPremium });
-  </script>
+  <script>App.start('premium');</script>
 </body>
 </html>
