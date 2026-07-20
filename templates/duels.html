@@ -1,107 +1,152 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LikeGod.net | Matchmaking Lobby Hub</title>
-    <style>
-        :root { --bg: #121214; --card: #1a1a1e; --accent: #4CAF50; --text: #ffffff; --text-muted: #94a3b8; --blue: #3b82f6; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; }
-        header { background: var(--card); padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2d2d34; }
-        .logo { font-size: 24px; font-weight: bold; color: var(--accent); text-decoration: none; }
-        nav { display: flex; align-items: center; }
-        nav a { color: var(--text); text-decoration: none; margin-left: 20px; font-weight: 500; }
-        .lang-btn { background: #2d2d34; color: var(--text-muted); border: 1px solid #444; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 15px; cursor: pointer; font-weight: bold; }
-        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
-        .grid-layout { display: grid; grid-template-columns: 300px 1fr; gap: 30px; }
-        .sidebar { background: var(--card); border-radius: 10px; padding: 20px; border: 1px solid #2d2d34; height: fit-content; }
-        .main-panel { display: flex; flex-direction: column; gap: 20px; }
-        h2 { margin-top: 0; color: var(--accent); font-size: 18px; border-bottom: 1px solid #2d2d34; padding-bottom: 10px; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-size: 13px; color: var(--text-muted); }
-        input, select { width: 100%; box-sizing: border-box; background: #121214; border: 1px solid #2d2d34; padding: 8px 12px; border-radius: 6px; color: white; }
-        .sorting-header { background: var(--card); border-radius: 10px; padding: 15px 20px; border: 1px solid #2d2d34; display: flex; align-items: center; justify-content: space-between; gap: 15px; }
-        .sort-buttons { display: flex; gap: 10px; }
-        .btn-sort { background: #121214; color: var(--text-muted); border: 1px solid #2d2d34; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
-        .duel-item { background: var(--card); padding: 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #2d2d34; border-left: 4px solid var(--accent); }
-        .btn { background: var(--accent); color: white; border: none; padding: 10px 18px; font-weight: bold; border-radius: 6px; cursor: pointer; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LikeGod.net</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-
-    <header>
-        <a href="/main" class="logo">LIKEGOD.NET</a>
-        <nav id="navbar"></nav>
-    </header>
-
-    <div class="container">
-        <div class="grid-layout">
-            <div class="sidebar">
-                <h2>Lobby Filters</h2>
-                <div class="form-group">
-                    <label>Game Map</label>
-                    <select id="filter-map" onchange="applyFilters()">
-                        <option value="all">All Maps</option>
-                        <option value="aim_redline">aim_redline</option>
-                    </select>
-                </div>
-                <div class="form-group"><label>Min Bank ($)</label><input type="number" id="filter-bank-min" value="0" oninput="applyFilters()"></div>
-                <div class="form-group"><label>Max Bank ($)</label><input type="number" id="filter-bank-max" value="1000" oninput="applyFilters()"></div>
-            </div>
-
-            <div class="main-panel">
-                <div class="sorting-header">
-                    <span>Sort Lobbies By:</span>
-                    <div class="sort-buttons">
-                        <button class="btn-sort active" onclick="setSort('bank', 'desc')">Bank: High to Low</button>
-                        <button class="btn-sort" onclick="setSort('bank', 'asc')">Bank: Low to High</button>
-                    </div>
-                </div>
-                <div id="lobbies-wrapper" style="display: flex; flex-direction: column; gap: 15px;">Loading active lobbies...</div>
-            </div>
-        </div>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="/main"><span class="brand__mark">LG</span><span class="brand__text"><span class="brand__title">LIKEGOD.NET</span><span class="brand__subtitle" data-i18n="common.brandSubtitle"></span></span></a>
+      <div id="navbar"></div>
     </div>
+  </header>
 
-    <script>
-        let currentUser = null;
-        let allDuels = [];
+  <main class="page-shell">
+    <section class="surface">
+      <div class="section-head">
+        <div>
+          <span class="section-title__eyebrow" data-i18n="duels.hero.eyebrow"></span>
+          <h1 class="page-title" data-i18n="duels.hero.title"></h1>
+          <p class="page-subtitle" data-i18n="duels.hero.subtitle"></p>
+        </div>
+      </div>
+      <div class="filter-grid">
+        <div class="form-group">
+          <label for="filter-map" data-i18n="duels.filters.map"></label>
+          <select id="filter-map">
+            <option value="all">all</option>
+            <option value="aim_redline">aim_redline</option>
+            <option value="aim_ag_texture">aim_ag_texture</option>
+            <option value="awp_india">awp_india</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="filter-bank-min" data-i18n="duels.filters.bankMin"></label>
+          <input id="filter-bank-min" type="number" min="0" value="0">
+        </div>
+        <div class="form-group">
+          <label for="filter-bank-max" data-i18n="duels.filters.bankMax"></label>
+          <input id="filter-bank-max" type="number" min="1" value="1000">
+        </div>
+        <div class="form-group">
+          <label for="filter-rank" data-i18n="duels.filters.rank"></label>
+          <select id="filter-rank"></select>
+        </div>
+      </div>
+    </section>
 
-        function showLangAlert() {
-            alert("Language selection function will be available soon! / Функция выбора языка появится в ближайшее время!");
-        }
+    <section class="surface" style="margin-top:20px;">
+      <div class="section-head">
+        <div>
+          <h2 data-i18n="duels.list.title"></h2>
+          <p data-i18n="duels.list.subtitle"></p>
+        </div>
+        <div class="toolbar">
+          <button class="btn-ghost" type="button" id="sort-bank-desc" data-i18n="duels.sort.high"></button>
+          <button class="btn-ghost" type="button" id="sort-bank-asc" data-i18n="duels.sort.low"></button>
+        </div>
+      </div>
+      <div id="duels-list" class="duel-list">
+        <div class="state-card" data-i18n="common.states.loading"></div>
+      </div>
+    </section>
+  </main>
 
-        function loadNavbar() {
-            fetch('/api/main').then(res => res.json()).then(data => {
-                const nav = document.getElementById('navbar');
-                let langHtml = `<button onclick="showLangAlert()" class="lang-btn">EN / RU</button>`;
-                if (data.authenticated) {
-                    currentUser = data.user;
-                    nav.innerHTML = `<a href="/premium">★ Premium</a><a href="/p/${data.user.username}">Profile</a><span style="margin-left:20px; font-weight:bold; color:var(--accent)">$${data.user.balance}</span><a href="/auth/logout" style="color: #ef4444; margin-left: 15px; text-decoration:none;">Logout</a>${langHtml}`;
-                } else {
-                    nav.innerHTML = `<a href="/auth/steam" class="btn">Login via Steam</a> ${langHtml}`;
-                }
-                loadDuelsRaw();
-            });
-        }
+  <footer class="site-footer" id="footer-shell"></footer>
+  <script src="/static/js/app.js"></script>
+  <script>
+    let allDuels = [];
+    let currentSort = { field: 'bank', direction: 'desc' };
 
-        function loadDuelsRaw() {
-            fetch('/api/v1/duels').then(res => res.json()).then(duels => { allDuels = duels; renderDuels(duels); });
-        }
+    function fillRankFilter() {
+      const select = document.getElementById('filter-rank');
+      select.innerHTML = `<option value="all">${LikeGodApp.t('duels.filters.allRanks')}</option>` + Array.from({ length: 10 }, (_, index) => {
+        const rank = index + 1;
+        return `<option value="${rank}">${LikeGodApp.t('common.rank', { rank })}</option>`;
+      }).join('');
+    }
 
-        function renderDuels(duels) {
-            const container = document.getElementById('lobbies-wrapper');
-            container.innerHTML = '';
-            if(duels.length === 0) { container.innerHTML = '<p>No duels match selected filters.</p>'; return; }
-            duels.forEach(d => {
-                container.innerHTML += `
-                    <div class="duel-item">
-                        <div><strong>Lobby #${d.id}</strong><br><span style="font-size:13px; color:var(--text-muted);">Creator: ${d.creator_username}</span></div>
-                        <div style="display:flex; align-items:center; gap:25px;"><strong>$${d.total_bank}</strong><button class="btn" onclick="window.location.href='/duel?id=${d.id}'">Open Room</button></div>
-                    </div>`;
-            });
-        }
+    function renderDuels() {
+      const mapFilter = document.getElementById('filter-map').value;
+      const bankMin = Number(document.getElementById('filter-bank-min').value || 0);
+      const bankMax = Number(document.getElementById('filter-bank-max').value || 999999);
+      const rankFilter = document.getElementById('filter-rank').value;
+      const target = document.getElementById('duels-list');
 
-        window.onload = loadNavbar;
-    </script>
+      let filtered = allDuels.filter((duel) => {
+        const matchesMap = mapFilter === 'all' || duel.map_name === mapFilter;
+        const matchesBank = duel.total_bank >= bankMin && duel.total_bank <= bankMax;
+        const matchesRank = rankFilter === 'all' || duel.creator_rank === Number(rankFilter) || (duel.min_rank <= Number(rankFilter) && duel.max_rank >= Number(rankFilter));
+        return matchesMap && matchesBank && matchesRank;
+      });
+
+      filtered = filtered.sort((a, b) => currentSort.direction === 'desc' ? b.total_bank - a.total_bank : a.total_bank - b.total_bank);
+
+      if (!filtered.length) {
+        target.innerHTML = `<div class="state-card">${LikeGodApp.t('common.states.emptyDuels')}</div>`;
+        return;
+      }
+
+      target.innerHTML = filtered.map((duel) => `
+        <article class="duel-card">
+          <div>
+            <div class="meta-line">
+              <span>#${duel.id}</span>
+              <span>${duel.map_name}</span>
+              <span>${LikeGodApp.t('common.rankRange', { min: duel.min_rank, max: duel.max_rank })}</span>
+            </div>
+            <h3 style="margin:10px 0 8px;">${duel.creator_username}</h3>
+            <div class="duel-card__meta">
+              <span>${LikeGodApp.t('common.labels.elo')}: ${duel.creator_elo}</span>
+              <span>${LikeGodApp.t('common.labels.creatorRank')}: ${LikeGodApp.t('common.rank', { rank: duel.creator_rank })}</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div class="duel-card__value">${LikeGodApp.formatMoney(duel.total_bank)}</div>
+            <a class="btn" href="/duel?id=${duel.id}">${LikeGodApp.t('common.actions.join')}</a>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    async function loadDuels() {
+      try {
+        allDuels = await LikeGodApp.api('/api/v1/duels', { headers: {} });
+        renderDuels();
+      } catch (error) {
+        document.getElementById('duels-list').innerHTML = `<div class="state-card">${error.message}</div>`;
+      }
+    }
+
+    function initDuelsPage() {
+      fillRankFilter();
+      ['filter-map', 'filter-bank-min', 'filter-bank-max', 'filter-rank'].forEach((id) => {
+        document.getElementById(id).oninput = renderDuels;
+        document.getElementById(id).onchange = renderDuels;
+      });
+      document.getElementById('sort-bank-desc').onclick = () => { currentSort.direction = 'desc'; renderDuels(); };
+      document.getElementById('sort-bank-asc').onclick = () => { currentSort.direction = 'asc'; renderDuels(); };
+      loadDuels();
+    }
+
+    document.addEventListener('likeagod:language-changed', initDuelsPage);
+    LikeGodApp.boot({ titleKey: 'duels.meta.title', onReady: initDuelsPage });
+  </script>
 </body>
 </html>

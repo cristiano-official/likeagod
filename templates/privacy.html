@@ -1,35 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>LikeGod.net | Privacy Policy</title>
-    <style>
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #121214; color: #ffffff; padding: 40px; line-height: 1.6; }
-        .doc-container { max-width: 800px; margin: 0 auto; background: #1a1a1e; padding: 40px; border-radius: 8px; border: 1px solid #2d2d34; }
-        h1, h2 { color: #4CAF50; border-bottom: 1px solid #2d2d34; padding-bottom: 8px; }
-        a { color: #4CAF50; text-decoration: none; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LikeGod.net</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <div class="doc-container">
-        <a href="/main" style="color: #94a3b8;">← Back to Main</a>
-        <h1>Privacy & Data Protection Policy</h1>
-        <p><strong>Last Updated:</strong> July 16, 2026</p>
-
-        <h2>1. Information We Collect</h2>
-        <p>To ensure secure operations and verify competitive match results, the Platform utilizes the secure Valve Steam OpenID authentication protocol. We collect and process only public profiles metadata:<br>
-        - Unique SteamID64 identifier;<br>
-        - Steam profile avatar URL;<br>
-        - Public user nickname.</p>
-
-        <h2>2. Purpose of Data Processing</h2>
-        <p>All gathered user metadata is strictly processed for identity authentication, custom matchmaking ranking calculations, competitive duel records logging, transaction safety, and display customization within the interactive match lobby rooms.</p>
-
-        <h2>3. Information Security</h2>
-        <p>The Service Provider maintains robust administrative, physical, and technical safeguards to protect user profile logs and financial operations against unauthorized access, alterations, disclosure, or destruction.</p>
-
-        <h2>4. Data Deletion and Support Requests</h2>
-        <p>If you wish to terminate your account and request complete database deletion of your user profile, contact our compliance team at: @likeagod_support.</p>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="/main"><span class="brand__mark">LG</span><span class="brand__text"><span class="brand__title">LIKEGOD.NET</span><span class="brand__subtitle" data-i18n="common.brandSubtitle"></span></span></a>
+      <div id="navbar"></div>
     </div>
+  </header>
+  <main class="page-shell">
+    <article class="legal-card">
+      <div class="section-title__eyebrow" data-i18n="legal.common.eyebrow"></div>
+      <h1 data-i18n="legal.privacy.title"></h1>
+      <p class="page-subtitle" data-i18n="legal.privacy.updated"></p>
+      <div class="hr"></div>
+      <div class="legal-content" data-i18n-html="legal.privacy.body"></div>
+    </article>
+  </main>
+  <footer class="site-footer" id="footer-shell"></footer>
+  <script src="/static/js/app.js"></script>
+  <script>LikeGodApp.boot({ titleKey: 'legal.privacy.metaTitle' });</script>
 </body>
 </html>

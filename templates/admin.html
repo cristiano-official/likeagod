@@ -1,362 +1,205 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LikeGod.net | Admin Dashboard</title>
-    <style>
-        :root {
-            --bg: #0f0f11;
-            --card: #16161a;
-            --accent: #ef4444;
-            --accent-green: #22c55e;
-            --text: #ffffff;
-            --text-muted: #94a3b8;
-        }
-        body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 0;
-        }
-        header {
-            background: var(--card);
-            padding: 15px 40px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #2d2d34;
-        }
-        .logo {
-            font-size: 20px;
-            font-weight: bold;
-            color: var(--accent);
-            text-decoration: none;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 30px auto;
-            padding: 0 20px;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-        }
-        .card {
-            background: var(--card);
-            border-radius: 10px;
-            padding: 25px;
-            border: 1px solid #2d2d34;
-            margin-bottom: 30px;
-        }
-        h2 {
-            margin-top: 0;
-            color: var(--text);
-            font-size: 18px;
-            border-bottom: 1px solid #2d2d34;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
-        .btn {
-            background: var(--accent);
-            color: white;
-            border: none;
-            padding: 10px 18px;
-            font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: 0.2s;
-            text-decoration: none;
-            display: inline-block;
-        }
-        .btn-green {
-            background: var(--accent-green);
-        }
-        .btn:hover {
-            opacity: 0.9;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 14px;
-            color: var(--text-muted);
-        }
-        input, select, textarea {
-            width: 100%;
-            box-sizing: border-box;
-            background: #0f0f11;
-            border: 1px solid #2d2d34;
-            padding: 10px;
-            border-radius: 6px;
-            color: white;
-            font-size: 14px;
-        }
-        .news-item {
-            background: #0f0f11;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid #2d2d34;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LikeGod.net</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-
-    <header>
-        <a href="/main" class="logo">LIKEGOD ADMIN</a>
-        <a href="/main" style="color: var(--text); text-decoration: none; font-weight: 500;">← Back to Main</a>
-    </header>
-
-    <div class="container">
-        <div class="card">
-            <h2>User Management & Balance Adjustments</h2>
-            <div class="grid">
-                <div class="form-group">
-                    <label>Target SteamID or Username</label>
-                    <input type="text" id="admin-user-id" placeholder="e.g. user_1234 or SteamID">
-                </div>
-                <div class="form-group">
-                    <label>Action Amount ($ / Elo)</label>
-                    <input type="number" id="admin-amount" step="0.5" value="10.0">
-                </div>
-            </div>
-            <div style="display: flex; gap: 15px;">
-                <button class="btn btn-green" onclick="adjustBalance()">Add Balance</button>
-                <button class="btn" onclick="adjustElo()">Set ELO Rating</button>
-            </div>
-        </div>
-
-        <div class="grid">
-            <div class="card">
-                <h2>Create News Announcement</h2>
-                <div class="form-group">
-                    <label>Title</label>
-                    <input type="text" id="news-title" required placeholder="New Tournament Starts!">
-                </div>
-                <div class="form-group">
-                    <label>Banner Image URL</label>
-                    <input type="text" id="news-image-url" required placeholder="https://example.com/image.jpg">
-                </div>
-                <div class="form-group">
-                    <label>Button Text (Optional - strictly ONE word, max 10 chars)</label>
-                    <input type="text" id="news-btn-text" placeholder="e.g. Join" maxlength="10">
-                </div>
-                <div class="form-group">
-                    <label>Button Action Link URL (Optional)</label>
-                    <input type="text" id="news-btn-url" placeholder="https://likeagod.net/premium">
-                </div>
-                <button onclick="submitNews()" class="btn btn-green" style="width: 100%;">Post Announcement</button>
-            </div>
-
-            <div>
-                <div class="card">
-                    <h2>Manage Active Tariffs</h2>
-                    <div class="form-group">
-                        <label>Duration Option</label>
-                        <select id="tariff-duration">
-                            <option value="1">1 Month Tier</option>
-                            <option value="3">3 Months Tier</option>
-                            <option value="12">12 Months Tier</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Price Set ($)</label>
-                        <input type="number" id="tariff-price" step="0.01" placeholder="4.99">
-                    </div>
-                    <div class="form-group">
-                        <label>Promo Discount Tag Label (Optional)</label>
-                        <input type="text" id="tariff-discount" placeholder="e.g. -20% Off">
-                    </div>
-                    <button class="btn btn-green" style="width: 100%;" onclick="updateTariff()">Create/Update Tariff Tier</button>
-                </div>
-
-                <div class="card">
-                    <h2>Platform Commission Settings</h2>
-                    <div class="form-group">
-                        <label>Commission Rate (%)</label>
-                        <input type="number" id="admin-commission" min="0" max="100" step="0.5" placeholder="10.0">
-                    </div>
-                    <button class="btn btn-green" style="width: 100%;" onclick="updateCommission()">Update Commission</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>Active Announcements</h2>
-            <div id="admin-news-list">Loading news...</div>
-        </div>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="/main"><span class="brand__mark">LG</span><span class="brand__text"><span class="brand__title">LIKEGOD ADMIN</span><span class="brand__subtitle" data-i18n="admin.hero.eyebrow"></span></span></a>
+      <div id="navbar"></div>
     </div>
+  </header>
 
-    <script>
-        function checkAdmin() {
-            fetch('/user/me')
-                .then(res => {
-                    if (!res.ok) throw new Error();
-                    return res.json();
-                })
-                .then(user => {
-                    if (user.role !== 'admin') {
-                        alert("Unauthorized admin access verified!");
-                        window.location.href = '/main';
-                    }
-                })
-                .catch(() => {
-                    alert("Unauthorized admin access verified!");
-                    window.location.href = '/main';
-                });
+  <main class="page-shell">
+    <section class="surface">
+      <div class="section-head">
+        <div>
+          <h1 class="page-title" data-i18n="admin.hero.title"></h1>
+          <p class="page-subtitle" data-i18n="admin.hero.subtitle"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-grid" style="margin-top:20px;">
+      <div class="stack">
+        <section class="surface">
+          <div class="section-head"><div><h2 data-i18n="admin.users.title"></h2><p data-i18n="admin.users.subtitle"></p></div></div>
+          <div class="form-grid">
+            <div class="form-group"><label for="admin-user-target" data-i18n="admin.users.target"></label><input id="admin-user-target" type="text" data-i18n-placeholder="admin.users.targetPlaceholder"></div>
+            <div class="form-group"><label for="admin-amount" data-i18n="admin.users.amount"></label><input id="admin-amount" type="number" value="10" step="0.5"></div>
+          </div>
+          <div class="button-row"><button class="btn" type="button" id="admin-add-balance" data-i18n="admin.users.addBalance"></button><button class="btn-secondary" type="button" id="admin-set-elo" data-i18n="admin.users.setElo"></button></div>
+        </section>
+
+        <section class="surface">
+          <div class="section-head"><div><h2 data-i18n="admin.news.title"></h2><p data-i18n="admin.news.subtitle"></p></div></div>
+          <div class="form-fields">
+            <div class="form-group"><label for="news-title" data-i18n="admin.news.form.title"></label><input id="news-title" type="text"></div>
+            <div class="form-group"><label for="news-image-url" data-i18n="admin.news.form.image"></label><input id="news-image-url" type="text"></div>
+            <div class="form-grid">
+              <div class="form-group"><label for="news-btn-text" data-i18n="admin.news.form.buttonText"></label><input id="news-btn-text" type="text"></div>
+              <div class="form-group"><label for="news-btn-url" data-i18n="admin.news.form.buttonUrl"></label><input id="news-btn-url" type="text"></div>
+            </div>
+          </div>
+          <div class="form-actions"><button class="btn" type="button" id="news-submit-btn" data-i18n="admin.news.form.submit"></button></div>
+        </section>
+
+        <section class="surface">
+          <div class="section-head"><div><h2 data-i18n="admin.news.listTitle"></h2></div></div>
+          <div id="admin-news-list" class="duel-list"><div class="state-card" data-i18n="common.states.loading"></div></div>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="surface">
+          <div class="section-head"><div><h2 data-i18n="admin.tariffs.title"></h2><p data-i18n="admin.tariffs.subtitle"></p></div></div>
+          <div class="form-fields">
+            <div class="form-group"><label for="tariff-duration" data-i18n="admin.tariffs.duration"></label><select id="tariff-duration"><option value="1">1</option><option value="3">3</option><option value="12">12</option></select></div>
+            <div class="form-group"><label for="tariff-price" data-i18n="admin.tariffs.price"></label><input id="tariff-price" type="number" step="0.01"></div>
+            <div class="form-group"><label for="tariff-discount" data-i18n="admin.tariffs.discount"></label><input id="tariff-discount" type="text"></div>
+          </div>
+          <div class="form-actions"><button class="btn-secondary" type="button" id="tariff-submit-btn" data-i18n="admin.tariffs.submit"></button></div>
+        </section>
+
+        <section class="surface">
+          <div class="section-head"><div><h2 data-i18n="admin.commission.title"></h2><p data-i18n="admin.commission.subtitle"></p></div></div>
+          <div class="form-group"><label for="admin-commission" data-i18n="admin.commission.label"></label><input id="admin-commission" type="number" step="0.5" min="0" max="100"></div>
+          <div class="form-actions"><button class="btn" type="button" id="commission-submit-btn" data-i18n="admin.commission.submit"></button></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer" id="footer-shell"></footer>
+  <script src="/static/js/app.js"></script>
+  <script>
+    async function ensureAdmin() {
+      const user = LikeGodApp.getUser();
+      if (!user || user.role !== 'admin') {
+        LikeGodApp.showToast(LikeGodApp.t('admin.errors.forbidden'), 'error');
+        setTimeout(() => { window.location.href = '/main'; }, 600);
+        return false;
+      }
+      return true;
+    }
+
+    async function loadNews() {
+      try {
+        const news = await LikeGodApp.api('/news', { headers: {} });
+        const target = document.getElementById('admin-news-list');
+        if (!news.length) {
+          target.innerHTML = `<div class="state-card">${LikeGodApp.t('common.states.emptyNews')}</div>`;
+          return;
         }
-        checkAdmin();
+        target.innerHTML = news.map((item) => `
+          <article class="duel-card">
+            <div>
+              <h3 style="margin:0 0 6px;">${item.title}</h3>
+              <div class="meta-line">${item.image_path}</div>
+            </div>
+            <button class="btn-danger" type="button" data-news-delete="${item.id}">${LikeGodApp.t('common.actions.delete')}</button>
+          </article>
+        `).join('');
+        target.querySelectorAll('[data-news-delete]').forEach((button) => button.addEventListener('click', () => deleteNews(button.dataset.newsDelete)));
+      } catch (error) {
+        document.getElementById('admin-news-list').innerHTML = `<div class="state-card">${error.message}</div>`;
+      }
+    }
 
-        function adjustBalance() {
-            const user_id = document.getElementById('admin-user-id').value;
-            const amount = document.getElementById('admin-amount').value;
-            fetch('/api/v1/admin/adjust-balance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ target: user_id, amount: parseFloat(amount) })
-            })
-            .then(res => {
-                if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
-                return res.json();
-            })
-            .then(data => alert(data.message))
-            .catch(err => alert("Error: " + err.message));
-        }
+    async function submitNews() {
+      try {
+        await LikeGodApp.api('/news/create', {
+          method: 'POST',
+          body: JSON.stringify({
+            title: document.getElementById('news-title').value,
+            image_path: document.getElementById('news-image-url').value,
+            btn_text: document.getElementById('news-btn-text').value || null,
+            btn_url: document.getElementById('news-btn-url').value || null
+          })
+        });
+        LikeGodApp.showToast(LikeGodApp.t('admin.toasts.newsSaved'), 'success');
+        await loadNews();
+      } catch (error) {
+        LikeGodApp.showToast(error.message, 'error');
+      }
+    }
 
-        function adjustElo() {
-            const user_id = document.getElementById('admin-user-id').value;
-            const amount = document.getElementById('admin-amount').value;
-            fetch('/api/v1/admin/adjust-elo', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ target: user_id, amount: parseInt(amount) })
-            })
-            .then(res => {
-                if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
-                return res.json();
-            })
-            .then(data => alert(data.message))
-            .catch(err => alert("Error: " + err.message));
-        }
+    async function deleteNews(id) {
+      try {
+        await LikeGodApp.api(`/news/${id}`, { method: 'DELETE' });
+        LikeGodApp.showToast(LikeGodApp.t('admin.toasts.newsDeleted'), 'success');
+        await loadNews();
+      } catch (error) {
+        LikeGodApp.showToast(error.message, 'error');
+      }
+    }
 
-        function submitNews() {
-            const title = document.getElementById('news-title').value;
-            const imageUrl = document.getElementById('news-image-url').value;
-            const btnText = document.getElementById('news-btn-text').value;
-            const btnUrl = document.getElementById('news-btn-url').value;
+    async function adjustBalance() {
+      try {
+        const payload = { target: document.getElementById('admin-user-target').value, amount: Number(document.getElementById('admin-amount').value || 0) };
+        const result = await LikeGodApp.api('/api/v1/admin/adjust-balance', { method: 'POST', body: JSON.stringify(payload) });
+        LikeGodApp.showToast(result.message, 'success');
+      } catch (error) {
+        LikeGodApp.showToast(error.message, 'error');
+      }
+    }
 
-            if (!title || !imageUrl) {
-                alert("Please fill in Title and Image URL!");
-                return;
-            }
+    async function adjustElo() {
+      try {
+        const payload = { target: document.getElementById('admin-user-target').value, amount: Number(document.getElementById('admin-amount').value || 0) };
+        const result = await LikeGodApp.api('/api/v1/admin/adjust-elo', { method: 'POST', body: JSON.stringify(payload) });
+        LikeGodApp.showToast(result.message, 'success');
+      } catch (error) {
+        LikeGodApp.showToast(error.message, 'error');
+      }
+    }
 
-            if (btnText) {
-                if (btnText.trim().split(/\s+/).length > 1) {
-                    alert("Button text must be strictly ONE word!");
-                    return;
-                }
-            }
+    async function updateTariff() {
+      try {
+        await LikeGodApp.api('/api/v1/admin/tariffs', {
+          method: 'POST',
+          body: JSON.stringify({
+            duration_months: Number(document.getElementById('tariff-duration').value),
+            price: Number(document.getElementById('tariff-price').value || 0),
+            discount_text: document.getElementById('tariff-discount').value || null
+          })
+        });
+        LikeGodApp.showToast(LikeGodApp.t('admin.toasts.tariffSaved'), 'success');
+      } catch (error) {
+        LikeGodApp.showToast(error.message, 'error');
+      }
+    }
 
-            fetch('/news/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    title: title,
-                    image_path: imageUrl,
-                    btn_text: btnText || null,
-                    btn_url: btnUrl || null
-                })
-            })
-            .then(res => {
-                if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
-                return res.json();
-            })
-            .then(data => {
-                alert("Announcement created successfully!");
-                document.getElementById('news-title').value = '';
-                document.getElementById('news-image-url').value = '';
-                document.getElementById('news-btn-text').value = '';
-                document.getElementById('news-btn-url').value = '';
-                loadAdminNews();
-            })
-            .catch(err => alert("Error: " + err.message));
-        }
+    async function updateCommission() {
+      try {
+        const result = await LikeGodApp.api('/api/v1/admin/commission', {
+          method: 'POST',
+          body: JSON.stringify({ commission_percent: Number(document.getElementById('admin-commission').value || 0) })
+        });
+        LikeGodApp.showToast(`${LikeGodApp.t('admin.toasts.commissionSaved')} ${result.commission_percent}%`, 'success');
+      } catch (error) {
+        LikeGodApp.showToast(error.message, 'error');
+      }
+    }
 
-        function updateTariff() {
-            const duration = document.getElementById('tariff-duration').value;
-            const price = document.getElementById('tariff-price').value;
-            const discount = document.getElementById('tariff-discount').value;
+    async function initAdminPage() {
+      if (!await ensureAdmin()) return;
+      document.getElementById('news-submit-btn').addEventListener('click', submitNews);
+      document.getElementById('admin-add-balance').addEventListener('click', adjustBalance);
+      document.getElementById('admin-set-elo').addEventListener('click', adjustElo);
+      document.getElementById('tariff-submit-btn').addEventListener('click', updateTariff);
+      document.getElementById('commission-submit-btn').addEventListener('click', updateCommission);
+      loadNews();
+    }
 
-            fetch('/api/v1/admin/tariffs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    duration_months: parseInt(duration),
-                    price: parseFloat(price),
-                    discount_text: discount || null
-                })
-            })
-            .then(res => {
-                if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
-                return res.json();
-            })
-            .then(data => alert("Tariff tier successfully updated inside database!"))
-            .catch(err => alert("Error: " + err.message));
-        }
-
-        /* Новая функция обновления комиссии */
-        function updateCommission() {
-            const val = document.getElementById('admin-commission').value;
-            if (!val) return;
-
-            fetch('/api/v1/admin/commission', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ commission_percent: parseFloat(val) })
-            })
-            .then(res => {
-                if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
-                return res.json();
-            })
-            .then(data => alert("Platform commission updated to " + data.commission_percent + "%!"))
-            .catch(err => alert("Error: " + err.message));
-        }
-
-        function loadAdminNews() {
-            fetch('/news')
-                .then(res => res.json())
-                .then(news => {
-                    const cont = document.getElementById('admin-news-list');
-                    cont.innerHTML = '';
-                    if (news.length === 0) {
-                        cont.innerHTML = '<p style="color: var(--text-muted)">No active announcements.</p>';
-                        return;
-                    }
-                    news.forEach(n => {
-                        cont.innerHTML += `
-                            <div class="news-item">
-                                <div><strong>${n.title}</strong> (${n.image_path})</div>
-                                <button class="btn" style="padding: 5px 10px; font-size:12px;" onclick="deleteNews(${n.id})">Delete</button>
-                            </div>
-                        `;
-                    });
-                });
-        }
-        loadAdminNews();
-
-        function deleteNews(id) {
-            fetch(`/news/${id}`, { method: 'DELETE' })
-                .then(res => res.json())
-                .then(() => loadAdminNews());
-        }
-    </script>
+    LikeGodApp.boot({ titleKey: 'admin.meta.title', onReady: initAdminPage });
+  </script>
 </body>
 </html>

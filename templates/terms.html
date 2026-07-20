@@ -1,50 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>LikeGod.net | Terms of Service</title>
-    <style>
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #121214; color: #ffffff; padding: 40px; line-height: 1.6; }
-        .doc-container { max-width: 800px; margin: 0 auto; background: #1a1a1e; padding: 40px; border-radius: 8px; border: 1px solid #2d2d34; }
-        h1, h2 { color: #4CAF50; border-bottom: 1px solid #2d2d34; padding-bottom: 8px; }
-        a { color: #4CAF50; text-decoration: none; }
-        .alert-box { background: #2a1414; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 4px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LikeGod.net</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <div class="doc-container">
-        <a href="/main" style="color: #94a3b8;">← Back to Main</a>
-        <h1>Terms of Service (User Agreement)</h1>
-        <p><strong>Last Updated:</strong> July 17, 2026</p>
-
-        <h2>1. General Provisions</h2>
-        <p>1.1. This Agreement is a public offer of the LikeGod.net esports platform (hereinafter referred to as the "Service Provider" or "Platform"). This agreement governs the use of the website and services designed for organizing competitive 1v1 matchmaking and esports tournaments in the discipline of Counter-Strike 2.</p>
-        <p>1.2. The internal currency utilized on the Platform (denoted as "$" or "USD" in the user interface) is an internal virtual unit equivalent to the United States Dollar (1.00 virtual unit = $1.00 USD).</p>
-
-        <h2>2. Anti-Cheat, Fair Play, and Account Bans</h2>
-        <div class="alert-box">
-            <strong>CRITICAL RULE (ZERO TOLERANCE POLICY):</strong><br>
-            The Platform reserves the absolute right to permanently terminate (ban) any User account and confiscate/annul all virtual funds, balances, and escrowed assets associated with the account, without any right to a refund or withdrawal, if the User is found engaging in any of the following fraudulent activities:
-            <ul>
-                <li><strong>Cheating:</strong> Using any third-party software, scripts, hacks, or modifications that grant an unfair competitive advantage.</li>
-                <li><strong>Smurfing:</strong> Deliberately playing on an account with a lower rank than the User's actual skill level to exploit opponent matchmaking.</li>
-                <li><strong>Account Sharing / Boosting:</strong> Allowing any third party, booster, or another player to play matches on the User's account.</li>
-                <li><strong>Multi-Accounting:</strong> Creating or operating more than one account on the Platform.</li>
-            </ul>
-            Any attempt to bypass matchmaking limits or cheat the system will result in an immediate and irreversible ban.
-        </div>
-
-        <h2>3. Subject of the Agreement</h2>
-        <p>The Service Provider grants the User access to the technical functionality of the Platform, including opponent matchmaking systems, dedicated match-hosting server infrastructure, competitive statistics logging, and optional premium personalization benefits (Premium Subscription).</p>
-
-        <h2>4. Balance Deposits, Payouts & Escrow Matrix</h2>
-        <p>4.1. Users may deposit entry-fee funds onto their virtual platform balance to establish crowdfunded prize pools for competitive esports matches (Duels).<br>
-        4.2. All entry fees contributed by match participants are securely locked in the Platform’s escrow system until the automated match server resolves the competitive outcome.<br>
-        4.3. Upon completion of the match, as verified and recorded by the automated game server engine, the escrowed prize pool (minus a standard system rental and administration fee) is instantly transferred to the winning participant’s virtual balance.</p>
-
-        <h2>5. Contact Information</h2>
-        <p>Customer Support Department:<br>
-        Telegram Support Channel: @likeagod_support</p>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="/main"><span class="brand__mark">LG</span><span class="brand__text"><span class="brand__title">LIKEGOD.NET</span><span class="brand__subtitle" data-i18n="common.brandSubtitle"></span></span></a>
+      <div id="navbar"></div>
     </div>
+  </header>
+  <main class="page-shell">
+    <article class="legal-card">
+      <div class="section-title__eyebrow" data-i18n="legal.common.eyebrow"></div>
+      <h1 data-i18n="legal.terms.title"></h1>
+      <p class="page-subtitle" data-i18n="legal.terms.updated"></p>
+      <div class="hr"></div>
+      <div class="legal-content" data-i18n-html="legal.terms.body"></div>
+    </article>
+  </main>
+  <footer class="site-footer" id="footer-shell"></footer>
+  <script src="/static/js/app.js"></script>
+  <script>LikeGodApp.boot({ titleKey: 'legal.terms.metaTitle' });</script>
 </body>
 </html>

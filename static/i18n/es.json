@@ -1,0 +1,357 @@
+{
+  "common": {
+    "brandSubtitle": "centro de control de duelos CS2",
+    "rank": "Rank {rank}",
+    "rankRange": "Ranks {min}–{max}",
+    "nav": {
+      "home": "Inicio",
+      "duels": "Duelos",
+      "premium": "Premium",
+      "profile": "Perfil",
+      "admin": "Admin",
+      "logout": "Salir",
+      "loginSteam": "Entrar con Steam",
+      "balance": "Saldo",
+      "language": "Idioma",
+      "menu": "Abrir navegación",
+      "deposit": "Depositar"
+    },
+    "actions": {
+      "open": "Abrir",
+      "join": "Unirse",
+      "close": "Cerrar",
+      "pay": "Abrir factura",
+      "save": "Guardar cambios",
+      "delete": "Eliminar",
+      "generateInvoice": "Generar factura",
+      "requestPayout": "Solicitar retiro"
+    },
+    "modal": {
+      "billingEyebrow": "Pagos",
+      "method": "Método de pago",
+      "amount": "Importe",
+      "telegram": "ID o usuario de Telegram",
+      "telegramPlaceholder": "123456789 o @usuario",
+      "withdrawNotice": "Abre @CryptoBot antes; de lo contrario el retiro puede fallar y el saldo volverá.",
+      "depositTitle": "Depositar saldo",
+      "depositText": "Elige una pasarela y un importe para generar una factura.",
+      "withdrawTitle": "Retirar fondos",
+      "withdrawText": "Los retiros se envían mediante el método de payout configurado en CryptoBot.",
+      "invoiceReady": "Factura lista",
+      "completePayment": "Completa el pago",
+      "invoiceText": "La factura se abre en una nueva pestaña. Termina el pago allí y luego actualiza tu perfil."
+    },
+    "errors": {
+      "authRequired": "Primero inicia sesión.",
+      "invalidAmount": "Introduce un importe válido.",
+      "genericError": "La solicitud falló. Inténtalo de nuevo."
+    },
+    "toasts": {
+      "saved": "Cambios guardados.",
+      "invoiceCreated": "Factura creada con éxito."
+    },
+    "states": {
+      "loading": "Cargando…",
+      "emptyNews": "Todavía no hay anuncios.",
+      "emptyDuels": "No se encontraron duelos para los filtros seleccionados.",
+      "emptyRequests": "Aún no hay solicitudes.",
+      "emptyHistory": "No hay historial de transacciones.",
+      "emptyTariffs": "Todavía no hay tarifas premium configuradas."
+    },
+    "labels": {
+      "balance": "Saldo",
+      "language": "Idioma",
+      "bank": "Bote",
+      "elo": "ELO",
+      "creatorRank": "Rango del creador"
+    }
+  },
+  "statuses": {
+    "waiting": "En espera",
+    "ready": "Listo",
+    "playing": "Jugando",
+    "processing": "Procesando",
+    "disputed": "En disputa",
+    "completed": "Completado"
+  },
+  "footer": {
+    "description": "Duelos por dinero para CS2 con interfaz oscura, lógica de escrow y despliegue manual listo para producción.",
+    "entity": "Comerciante: Empresario individual Moskalenko A. A. • INN 972904931221",
+    "terms": "Términos de servicio",
+    "privacy": "Política de privacidad",
+    "refund": "Política de reembolso",
+    "copy": "© 2026 LikeGod.net"
+  },
+  "home": {
+    "meta": {
+      "title": "LikeGod.net | Inicio"
+    },
+    "hero": {
+      "eyebrow": "Duelos por dinero CS2",
+      "title": "Crea un duelo, entra al servidor y pelea por el bote con tu aim.",
+      "subtitle": "Una experiencia lista para producción para jugadores de Steam: depósitos, salas rankeadas y flujo manual de moderación para disputas.",
+      "openDuels": "Ver lobbies",
+      "deposit": "Recargar saldo",
+      "statusEyebrow": "Estado de sesión",
+      "sessionTitle": "Resumen de cuenta",
+      "guestTitle": "Necesitas iniciar sesión con Steam",
+      "guestText": "Inicia sesión para crear lobbies, depositar fondos y gestionar tu historial de duelos."
+    },
+    "news": {
+      "eyebrow": "Feed de plataforma",
+      "title": "Últimos anuncios",
+      "subtitle": "Aquí aparecen noticias, promos premium y actualizaciones de moderación."
+    },
+    "activeDuels": {
+      "eyebrow": "Mis partidas",
+      "title": "Tus duelos activos"
+    },
+    "create": {
+      "eyebrow": "Nuevo lobby",
+      "title": "Crear sala de duelo",
+      "subtitle": "Define bote, mapa y rango permitido.",
+      "bank": "Bote total",
+      "map": "Mapa",
+      "minRank": "Rango mínimo",
+      "maxRank": "Rango máximo",
+      "submit": "Crear duelo"
+    },
+    "features": {
+      "eyebrow": "Por qué LikeGod",
+      "title": "Hecho para una primera versión fuerte",
+      "fast": {
+        "label": "Configuración rápida",
+        "text": "Crea una sala en segundos sin cambiar el contrato actual del backend."
+      },
+      "escrow": {
+        "label": "Escrow claro",
+        "text": "Bloqueo de saldo, confirmación de pago y disputas visibles desde la interfaz."
+      },
+      "global": {
+        "label": "UI multilingüe",
+        "text": "Inglés, ruso, chino y español se cargan desde JSON compartidos."
+      }
+    }
+  },
+  "duels": {
+    "meta": {
+      "title": "LikeGod.net | Duelos abiertos"
+    },
+    "hero": {
+      "eyebrow": "Buscador de salas",
+      "title": "Lobbies de duelo abiertos",
+      "subtitle": "Filtra salas por mapa, bote y rango antes de enviar una solicitud."
+    },
+    "filters": {
+      "map": "Mapa",
+      "bankMin": "Bote mínimo",
+      "bankMax": "Bote máximo",
+      "rank": "Rango preferido",
+      "allRanks": "Todos los rangos"
+    },
+    "list": {
+      "title": "Salas disponibles",
+      "subtitle": "Cada tarjeta mantiene el contrato actual del API de duelos."
+    },
+    "sort": {
+      "high": "Bote más alto",
+      "low": "Bote más bajo"
+    }
+  },
+  "duel": {
+    "meta": {
+      "title": "LikeGod.net | Sala de duelo"
+    },
+    "hero": {
+      "eyebrow": "Sala de partida",
+      "title": "Sala de duelo"
+    },
+    "info": {
+      "bank": "Bote",
+      "map": "Mapa",
+      "creatorShare": "Parte del creador",
+      "guestShare": "Parte del invitado"
+    },
+    "actions": {
+      "title": "Acciones",
+      "subtitle": "Las acciones cambian según el estado del duelo y tu rol.",
+      "join": "Enviar solicitud",
+      "cancel": "Cancelar duelo",
+      "confirm": "Confirmar resultado",
+      "dispute": "Abrir disputa",
+      "noActions": "No hay acciones disponibles ahora mismo."
+    },
+    "requests": {
+      "title": "Solicitudes recibidas",
+      "subtitle": "El creador puede aceptar un rival desde este panel.",
+      "accept": "Aceptar retador",
+      "hidden": "Las solicitudes solo se muestran al creador mientras la sala espera rival."
+    },
+    "guestWaiting": "Esperando rival",
+    "slotOpen": "Espacio libre",
+    "invalidId": "Falta el id del duelo en la URL.",
+    "toasts": {
+      "requestSent": "Solicitud enviada.",
+      "cancelled": "Duelo cancelado y fondos devueltos.",
+      "accepted": "Rival aceptado.",
+      "confirmed": "Resultado confirmado.",
+      "disputed": "El duelo pasó a estado de disputa."
+    }
+  },
+  "profile": {
+    "meta": {
+      "title": "LikeGod.net | Perfil"
+    },
+    "hero": {
+      "eyebrow": "Perfil público",
+      "emptyBio": "Este jugador todavía no añadió una bio.",
+      "standard": "Cuenta estándar"
+    },
+    "stats": {
+      "title": "Resumen de rendimiento",
+      "subtitle": "Métricas públicas del duelo y rango actual.",
+      "elo": "ELO",
+      "rank": "Rango",
+      "winrate": "Win rate",
+      "duels": "Duelos",
+      "wins": "Victorias",
+      "kills": "Bajas",
+      "deaths": "Muertes",
+      "kd": "K/D"
+    },
+    "history": {
+      "title": "Historial de transacciones",
+      "subtitle": "Depósitos, retiros y destinos de pago de la cuenta actual.",
+      "columns": {
+        "date": "Fecha",
+        "type": "Tipo",
+        "amount": "Importe",
+        "destination": "Destino",
+        "status": "Estado"
+      }
+    },
+    "billing": {
+      "title": "Acciones de saldo",
+      "subtitle": "Usa el modal compartido para depósitos y retiros.",
+      "deposit": "Depositar fondos",
+      "withdraw": "Retirar fondos",
+      "activeInvoice": "Factura pendiente",
+      "activeInvoiceText": "Ya tienes una factura pendiente de {amount}.",
+      "cancelInvoice": "Cancelar factura",
+      "invoiceCancelled": "Factura cancelada."
+    },
+    "settings": {
+      "title": "Ajustes del perfil",
+      "subtitle": "Actualiza idioma, tema y bio.",
+      "language": "Idioma de interfaz",
+      "theme": "Tema",
+      "dark": "Oscuro",
+      "light": "Claro",
+      "bio": "Bio",
+      "bioPlaceholder": "Añade un estado corto o presentación…"
+    }
+  },
+  "admin": {
+    "meta": {
+      "title": "LikeGod.net | Admin"
+    },
+    "hero": {
+      "eyebrow": "Operaciones",
+      "title": "Panel de administrador",
+      "subtitle": "Modera contenido, ajusta saldos, configura tarifas y cambia la comisión."
+    },
+    "users": {
+      "title": "Ajustes de usuarios",
+      "subtitle": "Usa username o SteamID para actualizar saldo o ELO.",
+      "target": "Jugador objetivo",
+      "targetPlaceholder": "username o SteamID",
+      "amount": "Importe",
+      "addBalance": "Añadir saldo",
+      "setElo": "Fijar ELO"
+    },
+    "news": {
+      "title": "Editor de anuncios",
+      "subtitle": "Las noticias se muestran en la página principal.",
+      "listTitle": "Anuncios activos",
+      "form": {
+        "title": "Título",
+        "image": "URL de banner",
+        "buttonText": "Texto del botón",
+        "buttonUrl": "URL del botón",
+        "submit": "Publicar anuncio"
+      }
+    },
+    "tariffs": {
+      "title": "Tarifas premium",
+      "subtitle": "Mantén la tienda premium sin cambiar el backend.",
+      "duration": "Duración (meses)",
+      "price": "Precio",
+      "discount": "Etiqueta de descuento",
+      "submit": "Guardar tarifa"
+    },
+    "commission": {
+      "title": "Comisión de plataforma",
+      "subtitle": "Este valor se usa para calcular pagos de duelos.",
+      "label": "Porcentaje de comisión",
+      "submit": "Guardar comisión"
+    },
+    "errors": {
+      "forbidden": "Se requieren permisos de administrador."
+    },
+    "toasts": {
+      "newsSaved": "Anuncio guardado.",
+      "newsDeleted": "Anuncio eliminado.",
+      "tariffSaved": "Tarifa guardada.",
+      "commissionSaved": "Comisión actualizada a"
+    }
+  },
+  "premium": {
+    "meta": {
+      "title": "LikeGod.net | Premium"
+    },
+    "hero": {
+      "eyebrow": "Acceso premium",
+      "title": "Mejora tu perfil de duelo",
+      "subtitle": "Destaca tu cuenta y prepara la tienda para futuras ventajas."
+    },
+    "status": {
+      "title": "Estado actual",
+      "guest": "Inicia sesión para ver tu estado premium.",
+      "active": "Premium activo hasta",
+      "inactive": "Premium no está activo en esta cuenta."
+    },
+    "cards": {
+      "title": "Tienda de tarifas",
+      "subtitle": "Todas las tarjetas se cargan desde la tabla existente premium_tariffs.",
+      "months": "Plan de {months} meses",
+      "cardText": "Insignia premium, perfil destacado y acceso listo para futuras ventajas.",
+      "buy": "Comprar premium"
+    },
+    "toasts": {
+      "purchased": "Premium activado."
+    }
+  },
+  "legal": {
+    "common": {
+      "eyebrow": "Legal"
+    },
+    "terms": {
+      "metaTitle": "LikeGod.net | Términos",
+      "title": "Términos de servicio",
+      "updated": "Actualizado para despliegue en producción",
+      "body": "<div class='state-card' style='text-align:left;margin-bottom:18px;'><strong>Importante:</strong> al registrarte, recargar saldo o entrar en un duelo, aceptas estas reglas por completo.</div>\n<h2>1. Estado de la plataforma</h2>\n<p>LikeGod.net ofrece infraestructura técnica para duelos de habilidad en Counter-Strike 2. El servicio no es un casino, una apuesta deportiva ni una lotería.</p>\n<h2>2. Cuenta y acceso</h2>\n<p>El acceso se realiza mediante Steam OpenID. El usuario es responsable de la seguridad de su cuenta de Steam, su perfil y todas las acciones realizadas durante la sesión.</p>\n<h2>3. Mecánica de duelos</h2>\n<p>Al crear una sala, la parte del creador queda congelada en el balance. Cuando se acepta al oponente, también se congela su parte. El bote se distribuye según el resultado registrado del partido y la comisión actual de la plataforma.</p>\n<h2>4. Juego limpio</h2>\n<p>Trampas, smurfing, amaño de partidas, compartir cuenta, automatización o intentos de manipular el resultado pueden llevar a reversión de saldo, cancelación del duelo o baneo permanente.</p>\n<h2>5. Pagos y retiros</h2>\n<p>Los depósitos y retiros se procesan mediante proveedores conectados. Las comisiones, verificaciones KYC, disponibilidad y retrasos dependen del proveedor elegido.</p>\n<h2>6. Disputas</h2>\n<p>Si el resultado del duelo es discutido, un participante puede mover la partida al estado de disputa. La plataforma se reserva el derecho de revisar logs, demos y notas internas antes de la resolución final.</p>\n<h2>7. Responsabilidad</h2>\n<p>La plataforma se ofrece “tal cual”. No somos responsables por fallos de Valve, Steam, la red, el hosting o los proveedores de pago externos.</p>\n<h2>8. Contacto</h2>\n<p>Soporte: <a href='https://t.me/likeagod_support' target='_blank' rel='noreferrer'>@likeagod_support</a><br>Comerciante: Empresario individual Moskalenko A. A. • INN 972904931221</p>"
+    },
+    "privacy": {
+      "metaTitle": "LikeGod.net | Privacidad",
+      "title": "Política de privacidad",
+      "updated": "Resumen del tratamiento de datos",
+      "body": "<h2>1. Datos que recopilamos</h2>\n<p>Guardamos los datos públicos de Steam necesarios para operar la plataforma: SteamID, avatar, apodo, país, idioma elegido, estadísticas de juego y registros del historial de pagos.</p>\n<h2>2. Para qué se usan</h2>\n<p>Los datos se usan para autenticación, creación de duelos, contabilidad del saldo, controles antifraude, revisión de disputas, soporte y personalización del idioma.</p>\n<h2>3. Información de pago</h2>\n<p>Las instrucciones de pago se procesan a través de pasarelas conectadas. La plataforma solo almacena identificadores, direcciones, importes y estados necesarios para conciliar depósitos y retiros.</p>\n<h2>4. Seguridad</h2>\n<p>Aplicamos medidas técnicas y organizativas apropiadas para un servicio de producción pequeño: aislamiento de sesiones, acceso administrativo restringido y registros internos.</p>\n<h2>5. Eliminación y solicitudes</h2>\n<p>Para eliminación de cuenta o solicitudes de cumplimiento, contacta a <a href='https://t.me/likeagod_support' target='_blank' rel='noreferrer'>@likeagod_support</a>.</p>"
+    },
+    "refund": {
+      "metaTitle": "LikeGod.net | Reembolsos",
+      "title": "Política de reembolso y retiros",
+      "updated": "Reglas de pagos y cancelaciones",
+      "body": "<div class='state-card' style='text-align:left;margin-bottom:18px;'><strong>Importante:</strong> los servicios digitales completados y los duelos ya liquidados normalmente no son reembolsables.</div>\n<h2>1. Depósitos</h2>\n<p>Una vez procesados, los fondos pasan al balance de la plataforma. Las comisiones del proveedor corresponden a la pasarela elegida y no son reembolsadas por la plataforma.</p>\n<h2>2. Retiros</h2>\n<p>Los usuarios pueden solicitar el retiro del saldo disponible desde el perfil. Se aplican límites mínimos y comprobaciones específicas de cada pasarela.</p>\n<h2>3. Cancelación de sala</h2>\n<p>Si un duelo en espera se cancela antes de aceptar a un rival, la parte congelada del creador se devuelve íntegramente a su saldo.</p>\n<h2>4. Premium y servicios digitales</h2>\n<p>El acceso premium activado y los servicios digitales ya entregados no son reembolsables una vez consumidos.</p>\n<h2>5. Soporte</h2>\n<p>Si detectas un problema con un pago, contacta a <a href='https://t.me/likeagod_support' target='_blank' rel='noreferrer'>@likeagod_support</a> con los detalles de la transacción.</p>"
+    }
+  }
+}

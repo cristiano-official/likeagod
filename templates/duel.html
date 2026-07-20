@@ -1,237 +1,234 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LikeGod.net | Match Room</title>
-    <style>
-        :root { --bg: #121214; --card: #1a1a1e; --accent: #4CAF50; --text: #ffffff; --text-muted: #94a3b8; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 30px; }
-        header { max-width: 800px; margin: 0 auto 15px auto; display: flex; justify-content: space-between; align-items: center; }
-        .card { background: var(--card); padding: 25px; border-radius: 8px; border: 1px solid #2d2d34; max-width: 800px; margin: 0 auto 20px auto; }
-        .score-board { display: flex; justify-content: space-around; align-items: center; font-size: 28px; font-weight: bold; margin: 20px 0; background: #121214; padding: 20px; border-radius: 8px; border: 1px solid #2d2d34; }
-        .btn { background: var(--accent); color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; font-weight: bold; transition: 0.2s; }
-        .btn:hover { opacity: 0.9; }
-        .req-item { background: #121214; padding: 15px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #2d2d34; }
-        .status-badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 14px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }
-        .status-waiting { background: #3b82f6; color: white; }
-        .status-ready { background: #10b981; color: white; }
-        .status-playing { background: #f59e0b; color: white; }
-        .status-processing { background: #8b5cf6; color: white; }
-        .status-disputed { background: #ef4444; color: white; }
-        .status-completed { background: #6b7280; color: white; }
-        .lang-btn { background: #2d2d34; color: var(--text-muted); border: 1px solid #444; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px; cursor: pointer; font-weight: bold; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LikeGod.net</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-
-    <header>
-        <a href="/main" style="color: var(--text-muted); text-decoration: none; font-weight: 500;">← Exit Lobby</a>
-        <div>
-            <button onclick="showLangAlert()" class="lang-btn">EN / RU</button>
-        </div>
-    </header>
-
-    <div class="card">
-        <h2 style="text-align: center; color: var(--accent); margin-top: 10px;">DUEL ROOM LOBBY #<span id="lobby-id-title">...</span></h2>
-
-        <div style="text-align: center;">
-            <span id="lobby-status-badge" class="status-badge status-waiting">Loading...</span>
-        </div>
-
-        <div class="score-board">
-            <div>
-                <a id="creator-link" href="#" style="color: #60a5fa; text-decoration: none; font-weight: bold;">Creator</a>
-                <div id="creator-meta" style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">Elo: 1000</div>
-            </div>
-            <div style="color: var(--accent); font-size: 36px;"><span id="c-score">0</span> : <span id="g-score">0</span></div>
-            <div>
-                <a id="guest-link" href="#" style="color: #f43f5e; text-decoration: none; font-weight: bold;">Opponent</a>
-                <div id="guest-meta" style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">Waiting...</div>
-            </div>
-        </div>
-
-        <div style="text-align: center; margin-bottom: 20px; font-size: 18px;">
-            Total Prize Pool: <span id="total-bank-display" style="color: var(--accent); font-weight: bold;">$0.00</span>
-        </div>
-
-        <div id="guest-action-block" style="display: none; text-align: center; margin-top: 20px;">
-            <button class="btn" onclick="submitJoinRequest()">Send Challenge / Join Request</button>
-        </div>
-
-        <div id="creator-action-block" style="display: none; text-align: center; margin-top: 20px;">
-            <button class="btn" style="background: #ef4444;" onclick="cancelLobby()">Cancel Lobby & Refund Funds</button>
-        </div>
-
-        <div id="payout-confirmation-block" style="display: none; text-align: center; margin-top: 20px; background: #221515; padding: 15px; border-radius: 6px; border: 1px solid #f43f5e;">
-            <p style="color: #f43f5e; font-weight: bold; margin-top: 0;">Match finished! Confirm the result or file a dispute if rules were broken:</p>
-            <div style="display: flex; gap: 15px; justify-content: center;">
-                <button class="btn" onclick="confirmPayout()">Confirm Result</button>
-                <button class="btn" style="background: #ef4444;" onclick="disputeMatch()">Dispute / File Protest</button>
-            </div>
-        </div>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="/main"><span class="brand__mark">LG</span><span class="brand__text"><span class="brand__title">LIKEGOD.NET</span><span class="brand__subtitle" data-i18n="common.brandSubtitle"></span></span></a>
+      <div id="navbar"></div>
     </div>
+  </header>
 
-    <div class="card" id="creator-requests-block" style="display: none;">
-        <h2>Incoming Challenging Profiles</h2>
-        <div id="requests-list">Waiting...</div>
-    </div>
+  <main class="page-shell">
+    <section class="duel-grid">
+      <div class="surface">
+        <div class="section-head">
+          <div>
+            <span class="section-title__eyebrow" data-i18n="duel.hero.eyebrow"></span>
+            <h1 class="page-title"><span data-i18n="duel.hero.title"></span> #<span id="duel-id-text">...</span></h1>
+          </div>
+          <span class="status-badge" id="duel-status">...</span>
+        </div>
 
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const duelId = urlParams.get('id');
-        document.getElementById('lobby-id-title').innerText = duelId;
+        <div class="duel-score">
+          <div>
+            <a id="creator-link" class="inline-link" href="#">Creator</a>
+            <div class="meta-line" id="creator-meta"></div>
+          </div>
+          <div class="duel-score__value"><span id="creator-score">0</span> : <span id="guest-score">0</span></div>
+          <div style="text-align:right;">
+            <a id="guest-link" class="inline-link" href="#">Guest</a>
+            <div class="meta-line" id="guest-meta"></div>
+          </div>
+        </div>
 
-        let currentUser = null;
-        let lobbyData = null;
+        <div class="stats-grid" style="margin-top:18px;">
+          <div class="stat-card"><div class="stat-card__label" data-i18n="duel.info.bank"></div><div class="stat-card__value" id="duel-bank">$0.00</div></div>
+          <div class="stat-card"><div class="stat-card__label" data-i18n="duel.info.map"></div><div class="stat-card__value" id="duel-map">aim_redline</div></div>
+          <div class="stat-card"><div class="stat-card__label" data-i18n="duel.info.creatorShare"></div><div class="stat-card__value" id="creator-share">$0.00</div></div>
+          <div class="stat-card"><div class="stat-card__label" data-i18n="duel.info.guestShare"></div><div class="stat-card__value" id="guest-share">$0.00</div></div>
+        </div>
+      </div>
 
-        function showLangAlert() {
-            alert("Language selection function will be available soon! / Функция выбора языка появится в ближайшее время!");
+      <aside class="side-panel">
+        <section class="surface">
+          <div class="section-head"><div><h2 data-i18n="duel.actions.title"></h2><p data-i18n="duel.actions.subtitle"></p></div></div>
+          <div class="list-stack" id="duel-action-list">
+            <div class="state-card" data-i18n="common.states.loading"></div>
+          </div>
+        </section>
+
+        <section class="surface">
+          <div class="section-head"><div><h2 data-i18n="duel.requests.title"></h2><p data-i18n="duel.requests.subtitle"></p></div></div>
+          <div id="requests-list" class="request-list">
+            <div class="state-card" data-i18n="common.states.loading"></div>
+          </div>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="site-footer" id="footer-shell"></footer>
+  <script src="/static/js/app.js"></script>
+  <script>
+    const duelId = new URLSearchParams(window.location.search).get('id');
+    let duelData = null;
+    let refreshTimer = null;
+
+    function setStatusBadge(status) {
+      const badge = document.getElementById('duel-status');
+      badge.textContent = LikeGodApp.statusLabel(status);
+      badge.className = `status-badge ${status === 'completed' ? 'badge-success' : status === 'disputed' ? 'badge-danger' : status === 'processing' ? 'badge-premium' : 'badge-live'}`;
+    }
+
+    function fillDuel(data) {
+      duelData = data;
+      document.getElementById('duel-id-text').textContent = duelId || '—';
+      document.getElementById('creator-link').textContent = data.creator_username;
+      document.getElementById('creator-link').href = `/p/${data.creator_username}`;
+      document.getElementById('creator-meta').textContent = `${LikeGodApp.t('common.labels.elo')}: ${data.creator_elo} • ${LikeGodApp.t('common.rank', { rank: data.creator_rank })}`;
+      document.getElementById('guest-link').textContent = data.guest_username || LikeGodApp.t('duel.guestWaiting');
+      document.getElementById('guest-link').href = data.guest_username ? `/p/${data.guest_username}` : '#';
+      document.getElementById('guest-meta').textContent = data.guest_username ? `${LikeGodApp.t('common.labels.elo')}: ${data.guest_elo} • ${LikeGodApp.t('common.rank', { rank: data.guest_rank })}` : LikeGodApp.t('duel.slotOpen');
+      document.getElementById('creator-score').textContent = data.creator_score;
+      document.getElementById('guest-score').textContent = data.guest_score;
+      document.getElementById('duel-bank').textContent = LikeGodApp.formatMoney(data.total_bank);
+      document.getElementById('duel-map').textContent = data.map_name;
+      document.getElementById('creator-share').textContent = LikeGodApp.formatMoney(data.creator_share);
+      document.getElementById('guest-share').textContent = LikeGodApp.formatMoney(data.guest_share);
+      setStatusBadge(data.status);
+      renderActions();
+      renderRequests();
+    }
+
+    function renderActions() {
+      const container = document.getElementById('duel-action-list');
+      const user = LikeGodApp.getUser();
+      const actions = [];
+      const isCreator = user && duelData && user.id === duelData.creator_id;
+      const isGuest = user && duelData && user.id === duelData.guest_id;
+
+      if (!user) {
+        actions.push(`<a class="steam-btn" href="/auth/steam">${LikeGodApp.t('common.nav.loginSteam')}</a>`);
+      } else if (duelData.status === 'waiting' && !isCreator && !duelData.guest_id) {
+        actions.push(`<button class="btn" type="button" id="join-request-btn">${LikeGodApp.t('duel.actions.join')}</button>`);
+      }
+
+      if (isCreator && duelData.status === 'waiting') {
+        actions.push(`<button class="btn-danger" type="button" id="cancel-duel-btn">${LikeGodApp.t('duel.actions.cancel')}</button>`);
+      }
+
+      if ((isCreator || isGuest) && ['ready', 'playing', 'processing'].includes(duelData.status)) {
+        actions.push(`<button class="btn" type="button" id="confirm-duel-btn">${LikeGodApp.t('duel.actions.confirm')}</button>`);
+        actions.push(`<button class="btn-ghost" type="button" id="dispute-duel-btn">${LikeGodApp.t('duel.actions.dispute')}</button>`);
+      }
+
+      container.innerHTML = actions.length ? actions.join('') : `<div class="state-card">${LikeGodApp.t('duel.actions.noActions')}</div>`;
+      document.getElementById('join-request-btn')?.addEventListener('click', submitJoinRequest);
+      document.getElementById('cancel-duel-btn')?.addEventListener('click', cancelLobby);
+      document.getElementById('confirm-duel-btn')?.addEventListener('click', confirmResult);
+      document.getElementById('dispute-duel-btn')?.addEventListener('click', disputeMatch);
+    }
+
+    async function renderRequests() {
+      const container = document.getElementById('requests-list');
+      const user = LikeGodApp.getUser();
+      if (!user || !duelData || user.id !== duelData.creator_id || duelData.status !== 'waiting') {
+        container.innerHTML = `<div class="state-card">${LikeGodApp.t('duel.requests.hidden')}</div>`;
+        return;
+      }
+
+      try {
+        const requests = await LikeGodApp.api(`/api/v1/duels/${duelId}/requests`, { headers: {} });
+        if (!requests.length) {
+          container.innerHTML = `<div class="state-card">${LikeGodApp.t('common.states.emptyRequests')}</div>`;
+          return;
         }
+        container.innerHTML = requests.map((request) => `
+          <article class="duel-card">
+            <div>
+              <h3 style="margin:0 0 6px;">${request.username}</h3>
+              <div class="meta-line">${LikeGodApp.t('common.labels.elo')}: ${request.elo} • ${LikeGodApp.t('common.rank', { rank: request.rank })}</div>
+            </div>
+            <button class="btn" type="button" data-accept-request="${request.request_id}">${LikeGodApp.t('duel.requests.accept')}</button>
+          </article>
+        `).join('');
+        container.querySelectorAll('[data-accept-request]').forEach((button) => button.addEventListener('click', () => acceptRequest(button.dataset.acceptRequest)));
+      } catch (error) {
+        container.innerHTML = `<div class="state-card">${error.message}</div>`;
+      }
+    }
 
-        function updateLobbyData() {
-            fetch('/user/me')
-                .then(res => res.json())
-                .then(user => {
-                    currentUser = user;
-                    return fetch(`/api/v1/duels/${duelId}`);
-                })
-                .then(res => res.json())
-                .then(duel => {
-                    if (!duel) return;
-                    lobbyData = duel;
+    async function loadDuel() {
+      if (!duelId) {
+        document.getElementById('duel-action-list').innerHTML = `<div class="state-card">${LikeGodApp.t('duel.invalidId')}</div>`;
+        return;
+      }
+      try {
+        const data = await LikeGodApp.api(`/api/v1/duels/${duelId}`, { headers: {} });
+        fillDuel(data);
+      } catch (error) {
+        document.getElementById('duel-action-list').innerHTML = `<div class="state-card">${error.message}</div>`;
+        document.getElementById('requests-list').innerHTML = `<div class="state-card">${error.message}</div>`;
+      }
+    }
 
-                    document.getElementById('creator-link').innerText = duel.creator_username;
-                    document.getElementById('creator-link').href = `/p/${duel.creator_username}`;
-                    document.getElementById('creator-meta').innerText = `Elo: ${duel.creator_elo} (Tier: ${duel.creator_rank})`;
+    async function submitJoinRequest() {
+      try {
+        await LikeGodApp.api(`/api/v1/duels/${duelId}/request`, { method: 'POST' });
+        LikeGodApp.showToast(LikeGodApp.t('duel.toasts.requestSent'), 'success');
+        await loadDuel();
+      } catch (error) {
+        LikeGodApp.showToast(error.message, 'error');
+      }
+    }
 
-                    if (duel.guest_id) {
-                        document.getElementById('guest-link').innerText = duel.guest_username;
-                        document.getElementById('guest-link').href = `/p/${duel.guest_username}`;
-                        document.getElementById('guest-meta').innerText = `Elo: ${duel.guest_elo} (Tier: ${duel.guest_rank})`;
-                    } else {
-                        document.getElementById('guest-link').innerText = "Waiting for opponent...";
-                        document.getElementById('guest-link').removeAttribute('href');
-                        document.getElementById('guest-meta').innerText = "Slot open";
-                    }
+    async function cancelLobby() {
+      try {
+        await LikeGodApp.api(`/api/v1/duels/${duelId}/cancel`, { method: 'DELETE' });
+        LikeGodApp.showToast(LikeGodApp.t('duel.toasts.cancelled'), 'success');
+        window.location.href = '/main';
+      } catch (error) {
+        LikeGodApp.showToast(error.message, 'error');
+      }
+    }
 
-                    document.getElementById('c-score').innerText = duel.creator_score;
-                    document.getElementById('g-score').innerText = duel.guest_score;
-                    document.getElementById('total-bank-display').innerText = `$${duel.total_bank}`;
+    async function acceptRequest(requestId) {
+      try {
+        await LikeGodApp.api(`/api/v1/requests/${requestId}/accept`, { method: 'POST' });
+        LikeGodApp.showToast(LikeGodApp.t('duel.toasts.accepted'), 'success');
+        await loadDuel();
+      } catch (error) {
+        LikeGodApp.showToast(error.message, 'error');
+      }
+    }
 
-                    const badge = document.getElementById('lobby-status-badge');
-                    badge.className = `status-badge status-${duel.status}`;
-                    badge.innerText = duel.status.toUpperCase();
+    async function confirmResult() {
+      try {
+        await LikeGodApp.api(`/api/v1/duels/${duelId}/confirm`, { method: 'POST' });
+        LikeGodApp.showToast(LikeGodApp.t('duel.toasts.confirmed'), 'success');
+        await loadDuel();
+      } catch (error) {
+        LikeGodApp.showToast(error.message, 'error');
+      }
+    }
 
-                    const isCreator = (currentUser.id === duel.creator_id);
+    async function disputeMatch() {
+      try {
+        await LikeGodApp.api(`/api/v1/duels/${duelId}/dispute`, { method: 'POST' });
+        LikeGodApp.showToast(LikeGodApp.t('duel.toasts.disputed'), 'warning');
+        await loadDuel();
+      } catch (error) {
+        LikeGodApp.showToast(error.message, 'error');
+      }
+    }
 
-                    document.getElementById('guest-action-block').style.display = 'none';
-                    document.getElementById('creator-action-block').style.display = 'none';
-                    document.getElementById('creator-requests-block').style.display = 'none';
-                    document.getElementById('payout-confirmation-block').style.display = 'none';
+    async function initDuelPage() {
+      await loadDuel();
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = setInterval(loadDuel, 5000);
+    }
 
-                    if (isCreator) {
-                        if (duel.status === 'waiting') {
-                            document.getElementById('creator-requests-block').style.display = 'block';
-                            document.getElementById('creator-action-block').style.display = 'block';
-                            loadIncomingRequests();
-                        }
-                    } else {
-                        if (duel.status === 'waiting') {
-                            document.getElementById('guest-action-block').style.display = 'block';
-                        }
-                    }
-
-                    if (duel.status === 'processing') {
-                        document.getElementById('payout-confirmation-block').style.display = 'block';
-                    }
-                })
-                .catch(err => console.log(err));
-        }
-
-        function submitJoinRequest() {
-            fetch(`/api/v1/duels/${duelId}/request`, { method: 'POST' })
-                .then(res => {
-                    if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
-                    return res.json();
-                })
-                .then(() => alert("Request sent!"))
-                .catch(err => alert("Error: " + err.message));
-        }
-
-        function cancelLobby() {
-            if (!confirm("Cancel this lobby and refund your funds?")) return;
-            fetch(`/api/v1/duels/${duelId}/cancel`, { method: 'DELETE' })
-                .then(res => {
-                    if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
-                    return res.json();
-                })
-                .then(() => {
-                    alert("Lobby canceled successfully.");
-                    window.location.href = '/main';
-                })
-                .catch(err => alert("Error: " + err.message));
-        }
-
-        function loadIncomingRequests() {
-            fetch(`/api/v1/duels/${duelId}/requests`)
-                .then(res => res.json())
-                .then(requests => {
-                    const container = document.getElementById('requests-list');
-                    container.innerHTML = '';
-                    if (!requests || requests.length === 0) {
-                        container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">No challengers pending yet.</p>';
-                        return;
-                    }
-                    requests.forEach(r => {
-                        container.innerHTML += `
-                            <div class="req-item">
-                                <div><strong>${r.username}</strong> (Elo: ${r.elo} | Tier: ${r.rank})</div>
-                                <button class="btn" style="padding:8px 16px; font-size:14px;" onclick="acceptChallenger(${r.request_id})">Accept Challenge</button>
-                            </div>
-                        `;
-                    });
-                });
-        }
-
-        function acceptChallenger(reqId) {
-            fetch(`/api/v1/requests/${reqId}/accept`, { method: 'POST' })
-                .then(res => {
-                    if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
-                    return res.json();
-                })
-                .then(() => {
-                    alert("Challenge accepted!");
-                    updateLobbyData();
-                })
-                .catch(err => alert("Error: " + err.message));
-        }
-
-        function confirmPayout() {
-            fetch(`/api/v1/duels/${duelId}/confirm`, { method: 'POST' })
-                .then(res => res.json())
-                .then(() => {
-                    alert("Payout completed!");
-                    window.location.href = '/main';
-                });
-        }
-
-        function disputeMatch() {
-            if (!confirm("Are you sure you want to dispute this match and involve an administrator/judge?")) return;
-            fetch(`/api/v1/duels/${duelId}/dispute`, { method: 'POST' })
-                .then(res => {
-                    if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
-                    return res.json();
-                })
-                .then(() => {
-                    alert("Dispute logged. Escrow is locked. Administrator will review the gameplay demo.");
-                    updateLobbyData();
-                })
-                .catch(err => alert("Error: " + err.message));
-        }
-
-        updateLobbyData();
-        setInterval(updateLobbyData, 3000);
-    </script>
+    document.addEventListener('likeagod:language-changed', initDuelPage);
+    LikeGodApp.boot({ titleKey: 'duel.meta.title', onReady: initDuelPage });
+  </script>
 </body>
 </html>
