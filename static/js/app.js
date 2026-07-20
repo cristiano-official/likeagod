@@ -314,7 +314,10 @@ window.App = (() => {
     const controller = App.pages[page];
     if (controller) {
       try { await controller(); }
-      catch (err) { console.error('[page]', page, err); }
+      catch (err) {
+        console.error('[page]', page, err);
+        App.toast(window.I18n ? window.I18n.t('common.errors.genericError') : 'Failed to load page content', 'error');
+      }
     }
     window.I18n.applyI18n(document);
   }
@@ -650,7 +653,7 @@ App.pages.duel = async function () {
             </div>`).join('');
           list.querySelectorAll('[data-accept]').forEach((b) => {
             b.addEventListener('click', async () => {
-              try { await A.api('POST', `/api/v1/requests/${b.dataset.accept}/accept`); A.toast(t('duel.toasts.accepted'), 'success'); setTimeout(() => location.reload(), 700); }
+              try { await A.api('POST', `/api/v1/requests/${b.dataset.accept}/accept`); A.toast(t('duel.toasts.accepted'), 'success'); setTimeout(() => location.reload(), 400); }
               catch (err) { A.toast(err.message, 'error'); }
             });
           });
@@ -666,10 +669,10 @@ async function duelAction(act, id) {
   const A = App, t = A.t;
   try {
     if (act === 'join') { await A.api('POST', `/api/v1/duels/${id}/request`); A.toast(t('duel.toasts.requestSent'), 'success'); }
-    else if (act === 'cancel') { await A.api('DELETE', `/api/v1/duels/${id}/cancel`); A.toast(t('duel.toasts.cancelled'), 'success'); setTimeout(() => location.href = '/duels', 700); return; }
+    else if (act === 'cancel') { await A.api('DELETE', `/api/v1/duels/${id}/cancel`); A.toast(t('duel.toasts.cancelled'), 'success'); setTimeout(() => location.href = "/duels", 400); return; }
     else if (act === 'confirm') { await A.api('POST', `/api/v1/duels/${id}/confirm`); A.toast(t('duel.toasts.confirmed'), 'success'); }
     else if (act === 'dispute') { await A.api('POST', `/api/v1/duels/${id}/dispute`); A.toast(t('duel.toasts.disputed'), 'success'); }
-    setTimeout(() => location.reload(), 800);
+    setTimeout(() => location.reload(), 400);
   } catch (err) { A.toast(err.message, 'error'); }
 }
 
@@ -746,7 +749,7 @@ function renderBilling(me) {
   document.getElementById('billing-deposit').addEventListener('click', A.renderDepositModal);
   document.getElementById('billing-withdraw').addEventListener('click', A.renderWithdrawModal);
   const cancel = document.getElementById('cancel-invoice');
-  if (cancel) cancel.addEventListener('click', async () => { if (await window.Payments.cancelInvoice()) setTimeout(() => location.reload(), 700); });
+  if (cancel) cancel.addEventListener('click', async () => { if (await window.Payments.cancelInvoice()) setTimeout(() => location.reload(), 400); });
 }
 
 async function renderHistory() {
@@ -826,7 +829,11 @@ function renderSettings(me) {
 
   document.getElementById('set-theme').addEventListener('change', () => { window.Theme.toggle(); App.renderHeader(); });
   document.getElementById('set-effect').addEventListener('change', (e) => window.Effects.start(e.target.value));
-  document.getElementById('set-lang').addEventListener('change', (e) => window.I18n.setLanguage(e.target.value).then(() => { App.renderHeader(); App.renderFooter(); App.pages.profile(); }));
+  document.getElementById('set-lang').addEventListener('change', (e) => {
+    window.I18n.setLanguage(e.target.value)
+      .then(() => { App.renderHeader(); App.renderFooter(); App.pages.profile(); })
+      .catch((err) => { console.error('[profile] language change failed:', err); App.toast('Language change failed', 'error'); });
+  });
   document.getElementById('set-save').addEventListener('click', async () => {
     const bio = document.getElementById('set-bio').value;
     const lang = document.getElementById('set-lang').value;
@@ -954,7 +961,7 @@ App.pages.premium = async function () {
         </div>`).join('');
       grid.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', async () => {
         if (!A.requireAuth()) return;
-        try { await A.api('POST', '/api/v1/premium/buy', { tariff_id: parseInt(b.dataset.buy, 10) }); A.toast(t('premium.toasts.purchased'), 'success'); setTimeout(() => location.reload(), 800); }
+        try { await A.api('POST', '/api/v1/premium/buy', { tariff_id: parseInt(b.dataset.buy, 10) }); A.toast(t('premium.toasts.purchased'), 'success'); setTimeout(() => location.reload(), 400); }
         catch (err) { A.toast(err.message, 'error'); }
       }));
     } catch (_) {

@@ -35,9 +35,10 @@ window.Theme = (() => {
   function toggle() {
     const next = current === 'dark' ? 1 : 0;
     apply(next);
-    // Sync to server if a session exists; ignore failures silently.
+    // Sync to server if a session exists; log failures but don't surface to user.
     if (window.App && window.App.user) {
-      window.App.api('POST', '/user/update', { theme: next }).catch(() => {});
+      window.App.api('POST', '/user/update', { theme: next })
+        .catch((e) => console.warn('[theme] sync failed:', e));
     }
     document.dispatchEvent(new CustomEvent('theme:changed', { detail: { theme: current } }));
     return current;
