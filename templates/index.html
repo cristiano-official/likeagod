@@ -3,480 +3,131 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LikeGod.net</title>
+  <title data-i18n="home.meta.title">LikeGod.net</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-  <header class="site-header">
-    <div class="site-header__inner">
-      <a class="brand" href="/main">
-        <span class="brand__mark">LG</span>
-        <span class="brand__text">
-          <span class="brand__title">LIKE<span class="brand__title-accent">GOD</span></span>
-          <span class="brand__subtitle" data-i18n="common.brandSubtitle"></span>
-        </span>
-      </a>
-      <div id="navbar"></div>
-    </div>
-  </header>
+<body data-page="home">
+  <canvas id="fx-canvas" aria-hidden="true"></canvas>
+  <div id="header-root"></div>
 
-  <main class="page-shell">
-    <section class="hero-banner">
-      <div class="hero-copy">
-        <span class="hero-badge">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M2 12h20"></path><circle cx="12" cy="12" r="7"></circle></svg>
-          <span data-i18n="home.hero.badge"></span>
-        </span>
-        <h1 data-i18n-html="home.hero.titleHtml"></h1>
-        <p data-i18n="home.hero.subtitle"></p>
-        <div class="hero-actions" id="hero-actions"></div>
-        <div class="hero-stats">
-          <div class="hero-stat">
-            <strong>2.4M+</strong>
-            <span data-i18n="home.hero.statDuels"></span>
-          </div>
-          <div class="hero-stat">
-            <strong>&lt;15s</strong>
-            <span data-i18n="home.hero.statMatch"></span>
-          </div>
-          <div class="hero-stat">
-            <strong>99.9%</strong>
-            <span data-i18n="home.hero.statPayouts"></span>
+  <main class="page-shell" id="page-content">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <span class="eyebrow" data-i18n="home.hero.eyebrow">CS2 money duels</span>
+          <h1 class="hero-title" data-i18n="home.hero.title">1v1 CS2 duels for real stakes.</h1>
+          <p class="hero-sub" data-i18n="home.hero.subtitle">Skill-based matchmaking, instant room setup, transparent payouts.</p>
+          <div class="hero-cta">
+            <a class="btn" href="/duels" data-i18n="home.hero.openDuels">Browse open lobbies</a>
+            <button class="btn-secondary" id="hero-deposit" data-i18n="home.hero.deposit">Top up balance</button>
           </div>
         </div>
+        <aside class="session-card" id="session-card"></aside>
       </div>
+    </section>
 
-      <aside class="hero-side">
-        <section class="hero-session" id="hero-session-card">
-          <div class="section-head">
-            <div>
-              <span class="section-title__eyebrow" data-i18n="home.hero.sessionEyebrow"></span>
-              <h2 data-i18n="home.hero.sessionTitle"></h2>
+    <!-- Live Lobbies -->
+    <section class="section-sm">
+      <div class="container">
+        <div class="section-head" style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div>
+            <span class="eyebrow" data-i18n="home.activeDuels.eyebrow">Active right now</span>
+            <h2 data-i18n="duels.list.title">Available rooms</h2>
+          </div>
+          <a class="nav-link" href="/duels" data-i18n="home.hero.openDuels">Browse open lobbies</a>
+        </div>
+        <div class="duel-grid" id="live-lobbies"></div>
+      </div>
+    </section>
+
+    <!-- Create Duel (auth only) -->
+    <section class="section-sm hidden" id="create-section">
+      <div class="container">
+        <div class="card-lg">
+          <span class="eyebrow" data-i18n="home.create.eyebrow">New lobby</span>
+          <h2 data-i18n="home.create.title">Create a duel room</h2>
+          <p style="margin-bottom:24px" data-i18n="home.create.subtitle">Set the bank, pick a map, restrict the rank range.</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" data-i18n="home.create.bank">Total bank</label>
+              <input class="form-input" id="cd-bank" type="number" min="1" step="0.01" placeholder="10.00">
+            </div>
+            <div class="form-group">
+              <label class="form-label" data-i18n="home.create.map">Map</label>
+              <select class="form-select" id="cd-map"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" data-i18n="home.create.minRank">Minimum rank</label>
+              <select class="form-select" id="cd-min"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" data-i18n="home.create.maxRank">Maximum rank</label>
+              <select class="form-select" id="cd-max"></select>
             </div>
           </div>
-          <div class="state-card" data-i18n="common.states.loading"></div>
-        </section>
-      </aside>
-    </section>
-
-    <section class="surface" id="how-it-works" style="margin-top:20px;">
-      <div class="section-head">
-        <div>
-          <span class="section-title__eyebrow" data-i18n="home.how.eyebrow"></span>
-          <h2 data-i18n="home.how.title"></h2>
-          <p data-i18n="home.how.subtitle"></p>
+          <div class="form-actions">
+            <button class="btn" id="cd-submit" data-i18n="home.create.submit">Create duel</button>
+          </div>
         </div>
-      </div>
-      <div class="feature-grid">
-        <article class="feature-card">
-          <span class="feature-card__icon"></span>
-          <h3 data-i18n="home.how.step1.title"></h3>
-          <p data-i18n="home.how.step1.body"></p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-card__icon"></span>
-          <h3 data-i18n="home.how.step2.title"></h3>
-          <p data-i18n="home.how.step2.body"></p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-card__icon"></span>
-          <h3 data-i18n="home.how.step3.title"></h3>
-          <p data-i18n="home.how.step3.body"></p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-card__icon"></span>
-          <h3 data-i18n="home.how.step4.title"></h3>
-          <p data-i18n="home.how.step4.body"></p>
-        </article>
       </div>
     </section>
 
-    <section class="split-panel" id="fair-play" style="margin-top:20px;">
-      <section class="surface">
-        <span class="hero-badge">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path><path d="m9 12 2 2 4-4"></path></svg>
-          <span data-i18n="home.fair.badge"></span>
-        </span>
-        <h2 style="margin:14px 0 12px;" data-i18n="home.fair.title"></h2>
-        <p class="page-subtitle" data-i18n="home.fair.subtitle"></p>
-        <ul class="bullet-list" style="margin-top:18px;">
-          <li>
-            <span class="icon-bullet"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path><path d="m9 12 2 2 4-4"></path></svg></span>
-            <span data-i18n="home.fair.bullet1"></span>
-          </li>
-          <li>
-            <span class="icon-bullet"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path><path d="m9 12 2 2 4-4"></path></svg></span>
-            <span data-i18n="home.fair.bullet2"></span>
-          </li>
-          <li>
-            <span class="icon-bullet"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path><path d="m9 12 2 2 4-4"></path></svg></span>
-            <span data-i18n="home.fair.bullet3"></span>
-          </li>
-        </ul>
-      </section>
-
-      <aside class="pot-card">
-        <div class="duel-card__header">
-          <span class="stat-card__label" data-i18n="home.fair.livePot"></span>
-          <span class="badge badge-live" data-i18n="home.fair.escrowed"></span>
-        </div>
-        <div>
-          <div class="stat-card__label" data-i18n="home.fair.totalPrize"></div>
-          <div class="pot-card__value" style="margin-top:8px; color:var(--accent);">$1,000</div>
-          <div class="muted" data-i18n="home.fair.credits"></div>
-        </div>
-        <div class="pot-card__players">
-          <div class="pot-card__player">
-            <strong>sh1ft_</strong>
-            <div class="muted" data-i18n="home.fair.playerA"></div>
-          </div>
-          <div class="pot-card__player">
-            <strong data-i18n="home.fair.you"></strong>
-            <div class="muted" data-i18n="home.fair.playerB"></div>
-          </div>
-        </div>
-      </aside>
-    </section>
-
-    <section class="content-grid" style="margin-top:20px;">
-      <section class="surface">
+    <!-- News -->
+    <section class="section-sm">
+      <div class="container">
         <div class="section-head">
-          <div>
-            <span class="section-title__eyebrow" data-i18n="home.news.eyebrow"></span>
-            <h2 data-i18n="home.news.title"></h2>
-            <p data-i18n="home.news.subtitle"></p>
-          </div>
+          <span class="eyebrow" data-i18n="home.news.eyebrow">Platform feed</span>
+          <h2 data-i18n="home.news.title">Latest announcements</h2>
+          <p data-i18n="home.news.subtitle">Launch notes and updates appear here.</p>
         </div>
-        <div id="news-list" class="news-rail">
-          <div class="state-card" data-i18n="common.states.loading"></div>
-        </div>
-      </section>
+        <div id="news-root"></div>
+      </div>
+    </section>
 
-      <aside class="surface" id="create-lobby-card">
+    <!-- How it works -->
+    <section class="section">
+      <div class="container">
         <div class="section-head">
-          <div>
-            <span class="section-title__eyebrow" data-i18n="home.create.eyebrow"></span>
-            <h2 data-i18n="home.create.title"></h2>
-            <p data-i18n="home.create.subtitle"></p>
+          <span class="eyebrow" data-i18n="home.features.eyebrow">Why LikeGod</span>
+          <h2 data-i18n="home.features.title">Built for a clean first release</h2>
+        </div>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="step-num">1</div>
+            <h3 data-i18n="home.features.fast.label">Fast room setup</h3>
+            <p data-i18n="home.features.fast.text">Create a room in seconds.</p>
           </div>
-        </div>
-        <div class="metrics-inline">
-          <div class="metric-inline">
-            <strong>aim_redline</strong>
-            <small data-i18n="home.create.mapHint"></small>
+          <div class="feature-card">
+            <div class="step-num">2</div>
+            <h3 data-i18n="home.features.escrow.label">Escrow aware</h3>
+            <p data-i18n="home.features.escrow.text">Balance freeze and payout states are visible.</p>
           </div>
-          <div class="metric-inline">
-            <strong>awp_india</strong>
-            <small data-i18n="home.create.rankHint"></small>
+          <div class="feature-card">
+            <div class="step-num">3</div>
+            <h3 data-i18n="home.features.global.label">Multilingual UI</h3>
+            <p data-i18n="home.features.global.text">Dictionaries loaded from shared JSON.</p>
           </div>
-        </div>
-        <div class="chip-row" style="margin-top:4px;">
-          <span class="chip-button" aria-hidden="true">aim_redline</span>
-          <span class="chip-button" aria-hidden="true">aim_ag_texture</span>
-          <span class="chip-button" aria-hidden="true">awp_india</span>
-        </div>
-        <div class="form-actions" style="margin-top:6px;">
-          <button class="btn" type="button" id="open-create-duel-modal"></button>
-        </div>
-      </aside>
-    </section>
-
-    <section class="surface" style="margin-top:20px;">
-      <div class="section-head">
-        <div>
-          <span class="section-title__eyebrow" data-i18n="home.activeDuels.eyebrow"></span>
-          <h2 data-i18n="home.activeDuels.title"></h2>
-          <p data-i18n="home.activeDuels.subtitle"></p>
         </div>
       </div>
-      <div id="active-duels-list" class="duel-list">
-        <div class="state-card" data-i18n="common.states.loading"></div>
-      </div>
-    </section>
-
-    <section class="cta-panel" style="margin-top:20px;">
-      <h2 data-i18n="home.cta.title"></h2>
-      <p class="page-subtitle" style="margin:12px auto 0; max-width:42rem;" data-i18n="home.cta.subtitle"></p>
-      <div class="hero-actions" id="cta-actions" style="justify-content:center; margin-top:24px;"></div>
     </section>
   </main>
 
-  <div class="modal-backdrop" id="create-duel-modal" aria-hidden="true">
-    <div class="modal modal--sheet">
-      <div class="modal__header">
-        <div>
-          <div class="section-title__eyebrow" data-i18n="home.create.eyebrow"></div>
-          <h3 data-i18n="home.create.modalTitle"></h3>
-          <p class="page-subtitle" data-i18n="home.create.modalSubtitle"></p>
-        </div>
-        <button class="modal__close" type="button" data-close-modal="create-duel-modal">×</button>
-      </div>
-      <div class="form-fields">
-        <div class="form-group">
-          <label for="total_bank" data-i18n="home.create.bank"></label>
-          <input id="total_bank" type="number" min="1" step="0.5" value="10">
-          <div class="chip-row chip-row--compact" id="duel-bank-presets">
-            <button class="chip-button" type="button" data-duel-bank-preset="5">$5</button>
-            <button class="chip-button" type="button" data-duel-bank-preset="10">$10</button>
-            <button class="chip-button" type="button" data-duel-bank-preset="25">$25</button>
-            <button class="chip-button" type="button" data-duel-bank-preset="50">$50</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="map_name" data-i18n="home.create.map"></label>
-          <select id="map_name">
-            <option value="aim_redline">aim_redline</option>
-            <option value="aim_ag_texture">aim_ag_texture</option>
-            <option value="awp_india">awp_india</option>
-          </select>
-        </div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="min_rank" data-i18n="home.create.minRank"></label>
-            <select id="min_rank"></select>
-          </div>
-          <div class="form-group">
-            <label for="max_rank" data-i18n="home.create.maxRank"></label>
-            <select id="max_rank"></select>
-          </div>
-        </div>
-      </div>
-      <div class="form-actions" style="margin-top:20px;">
-        <button class="btn" type="button" id="create-lobby-btn" data-i18n="home.create.submit"></button>
-        <button class="btn-ghost" type="button" data-close-modal="create-duel-modal" data-i18n="common.actions.close"></button>
-      </div>
-    </div>
+  <div id="footer-root"></div>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <div id="modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div id="modal-content" class="modal"></div>
   </div>
 
-  <footer class="site-footer" id="footer-shell"></footer>
   <script src="/static/js/i18n.js"></script>
   <script src="/static/js/theme.js"></script>
-  <script src="/static/js/payments.js"></script>
   <script src="/static/js/effects.js"></script>
+  <script src="/static/js/payments.js"></script>
   <script src="/static/js/slider.js"></script>
   <script src="/static/js/app.js"></script>
-  <script>
-    const ranks = Array.from({ length: 10 }, (_, index) => index + 1);
-    let newsCarouselController = null;
-
-    function setFeatureIcons() {
-      const icons = [
-        LikeGodApp.icon('crosshair'),
-        LikeGodApp.icon('wallet'),
-        LikeGodApp.icon('swords'),
-        LikeGodApp.icon('trophy')
-      ];
-      document.querySelectorAll('.feature-card__icon').forEach((node, index) => {
-        node.innerHTML = icons[index] || LikeGodApp.icon('sparkles');
-      });
-    }
-
-    function fillRankSelects() {
-      const minSelect = document.getElementById('min_rank');
-      const maxSelect = document.getElementById('max_rank');
-      minSelect.innerHTML = ranks.map((rank) => `<option value="${rank}">${LikeGodApp.escapeHtml(LikeGodApp.t('common.rank', { rank }))}</option>`).join('');
-      maxSelect.innerHTML = ranks.map((rank) => `<option value="${rank}" ${rank === 10 ? 'selected' : ''}>${LikeGodApp.escapeHtml(LikeGodApp.t('common.rank', { rank }))}</option>`).join('');
-    }
-
-    function renderHeroActions(data) {
-      const label = data.authenticated ? LikeGodApp.t('home.hero.primaryAuth') : LikeGodApp.t('common.nav.loginSteam');
-      const href = data.authenticated ? '/duels' : '/auth/steam';
-      const buttonClass = data.authenticated ? 'btn' : 'steam-btn';
-      document.getElementById('hero-actions').innerHTML = `
-        <a class="${buttonClass}" href="${href}">${LikeGodApp.escapeHtml(label)}</a>
-        <a class="btn-secondary" href="/main#how-it-works">${LikeGodApp.escapeHtml(LikeGodApp.t('common.actions.learnMore'))}</a>
-      `;
-      document.getElementById('cta-actions').innerHTML = `
-        <a class="${buttonClass}" href="${href}">${LikeGodApp.escapeHtml(data.authenticated ? LikeGodApp.t('home.cta.primaryAuth') : LikeGodApp.t('home.cta.primaryGuest'))}</a>
-      `;
-      document.getElementById('open-create-duel-modal').textContent = data.authenticated ? LikeGodApp.t('common.actions.createDuel') : LikeGodApp.t('common.nav.loginSteam');
-      document.getElementById('open-create-duel-modal').onclick = () => {
-        if (!data.authenticated) {
-          window.location.href = '/auth/steam';
-          return;
-        }
-        LikeGodApp.openModal('create-duel-modal');
-      };
-    }
-
-    function renderHeroSession(data) {
-      const target = document.getElementById('hero-session-card');
-      if (!data.authenticated || !data.user) {
-        target.innerHTML = `
-          <span class="badge">${LikeGodApp.escapeHtml(LikeGodApp.t('home.hero.guestBadge'))}</span>
-          <h3>${LikeGodApp.escapeHtml(LikeGodApp.t('home.hero.guestTitle'))}</h3>
-          <p class="page-subtitle">${LikeGodApp.escapeHtml(LikeGodApp.t('home.hero.guestText'))}</p>
-          <p class="hero-session__note">${LikeGodApp.escapeHtml(LikeGodApp.t('home.hero.guestValue'))}</p>
-          <div class="form-actions"><a class="steam-btn" href="/auth/steam">${LikeGodApp.escapeHtml(LikeGodApp.t('common.nav.loginSteam'))}</a></div>
-        `;
-        return;
-      }
-
-      const stats = data.stats || {};
-      const winrate = Math.max(0, Math.min(100, Number(stats.winrate || 0)));
-      target.innerHTML = `
-        <div class="user-summary">
-          <div style="display:flex; align-items:center; gap:12px; min-width:0;">
-            ${LikeGodApp.avatarMarkup(data.user.username, data.user.avatar, 'avatar')}
-            <div style="min-width:0;">
-              <h3 style="margin:0;">${LikeGodApp.escapeHtml(data.user.username)}</h3>
-              <div class="meta-line">${LikeGodApp.escapeHtml(data.user.country || '—')} • ${LikeGodApp.escapeHtml((data.user.language || 'en').toUpperCase())}</div>
-            </div>
-          </div>
-          <span class="badge ${data.user.is_premium ? 'badge-premium' : ''}">${LikeGodApp.escapeHtml(data.user.is_premium ? LikeGodApp.t('common.nav.premium') : LikeGodApp.t('profile.hero.standard'))}</span>
-        </div>
-        <div class="compact-stats">
-          <div class="compact-stat">
-            <small>${LikeGodApp.escapeHtml(LikeGodApp.t('common.labels.balance'))}</small>
-            <strong>${LikeGodApp.escapeHtml(LikeGodApp.formatMoney(data.user.balance || 0))}</strong>
-          </div>
-          <div class="compact-stat">
-            <small>${LikeGodApp.escapeHtml(LikeGodApp.t('profile.stats.rank'))}</small>
-            <strong>${LikeGodApp.escapeHtml(LikeGodApp.t('common.rank', { rank: stats.rank || 1 }))}</strong>
-          </div>
-          <div class="compact-stat">
-            <small>${LikeGodApp.escapeHtml(LikeGodApp.t('profile.stats.winrate'))}</small>
-            <strong>${LikeGodApp.escapeHtml(`${winrate}%`)}</strong>
-            <div class="progress" role="progressbar" aria-valuenow="${winrate}" aria-valuemin="0" aria-valuemax="100"><span style="width:${winrate}%"></span></div>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderNews(news) {
-      const target = document.getElementById('news-list');
-      if (!news.length) {
-        target.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('common.states.emptyNews'))}</div>`;
-        return;
-      }
-
-      target.innerHTML = `
-        <div class="news-carousel" id="news-carousel">
-          <button class="carousel-arrow carousel-arrow--prev" type="button" data-carousel-prev aria-label="Previous slide">‹</button>
-          <button class="carousel-arrow carousel-arrow--next" type="button" data-carousel-next aria-label="Next slide">›</button>
-          <div class="news-carousel__viewport">
-            <div class="news-carousel__track" data-carousel-track>
-              ${news.map((item) => {
-                const title = LikeGodApp.escapeHtml(item.title || '');
-                const imageUrl = LikeGodApp.safeUrl(item.image_path, '');
-                const actionUrl = LikeGodApp.safeUrl(item.btn_url, '#');
-                const actionText = LikeGodApp.escapeHtml(item.btn_text || '');
-                const date = LikeGodApp.escapeHtml(new Date(item.created_at).toLocaleDateString());
-                return `
-                  <article class="news-carousel__slide" data-carousel-slide style="background-image:url('${imageUrl || ''}')">
-                    <div class="news-carousel__content">
-                      <span class="hero-badge">${LikeGodApp.escapeHtml(LikeGodApp.t('home.news.badge'))}</span>
-                      <h3 class="news-carousel__title">${title}</h3>
-                      <div class="news-carousel__date">${date}</div>
-                      ${actionText && actionUrl !== '#' ? `<a class="btn" href="${actionUrl}" target="_blank" rel="noreferrer">${actionText}</a>` : ''}
-                    </div>
-                  </article>
-                `;
-              }).join('')}
-            </div>
-          </div>
-          <div class="carousel-dots" data-carousel-dots></div>
-        </div>
-      `;
-
-      newsCarouselController?.destroy?.();
-      newsCarouselController = LikeGodSlider.init(document.getElementById('news-carousel'), { auto: true, interval: 5200 });
-    }
-
-    function renderActiveDuels(duels) {
-      const target = document.getElementById('active-duels-list');
-      if (!duels.length) {
-        target.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('common.states.emptyDuels'))}</div>`;
-        return;
-      }
-
-      target.innerHTML = duels.map((duel) => {
-        const creator = LikeGodApp.escapeHtml(duel.creator_name || 'Player');
-        const guest = LikeGodApp.escapeHtml(duel.guest_name || LikeGodApp.t('duel.guestWaiting'));
-        return `
-          <article class="duel-card">
-            <div class="duel-card__header">
-              <span class="status-badge ${duel.status === 'completed' ? 'badge-success' : 'badge-live'}">${LikeGodApp.escapeHtml(LikeGodApp.statusLabel(duel.status))}</span>
-              <span class="meta-line">#${duel.id}</span>
-            </div>
-            <div class="duel-card__creator">
-              ${LikeGodApp.avatarMarkup(duel.creator_name || 'Player', '', 'avatar')}
-              <div>
-                <h3>${creator}</h3>
-                <div class="meta-line">${guest}</div>
-              </div>
-            </div>
-            <div class="duel-card__meta">
-              <span class="meta-chip">${LikeGodApp.icon('coins')} ${LikeGodApp.escapeHtml(LikeGodApp.formatMoney(duel.total_bank))}</span>
-              <span class="meta-chip">${LikeGodApp.icon('swords')} ${LikeGodApp.escapeHtml(LikeGodApp.t('home.activeDuels.meta'))}</span>
-            </div>
-            <div class="duel-card__divider"></div>
-            <div class="duel-card__footer">
-              <div>
-                <div class="stat-card__label">${LikeGodApp.escapeHtml(LikeGodApp.t('duel.info.bank'))}</div>
-                <div class="duel-card__value">${LikeGodApp.escapeHtml(LikeGodApp.formatMoney(duel.total_bank))}</div>
-              </div>
-              <a class="btn-ghost" href="/duel?id=${duel.id}">${LikeGodApp.escapeHtml(LikeGodApp.t('common.actions.open'))}</a>
-            </div>
-          </article>
-        `;
-      }).join('');
-    }
-
-    async function createLobby() {
-      const createButton = document.getElementById('create-lobby-btn');
-      const payload = {
-        total_bank: Number(document.getElementById('total_bank').value || 0),
-        map_name: document.getElementById('map_name').value,
-        min_rank: Number(document.getElementById('min_rank').value || 1),
-        max_rank: Number(document.getElementById('max_rank').value || 10)
-      };
-
-      LikeGodApp.setButtonBusy(createButton, true, LikeGodApp.t('home.create.submitLoading'));
-      try {
-        const result = await LikeGodApp.api('/api/v1/duels', {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
-        window.location.href = `/duel?id=${result.duel_id}`;
-      } catch (error) {
-        LikeGodApp.showToast(error.message, 'error');
-      } finally {
-        LikeGodApp.setButtonBusy(createButton, false);
-      }
-    }
-
-    function bindCreateDuelControls(data) {
-      document.querySelectorAll('[data-duel-bank-preset]').forEach((button) => {
-        button.onclick = () => {
-          document.getElementById('total_bank').value = button.dataset.duelBankPreset;
-        };
-      });
-      document.getElementById('create-lobby-btn').onclick = createLobby;
-      document.querySelectorAll('[data-close-modal="create-duel-modal"]').forEach((button) => {
-        button.onclick = () => LikeGodApp.closeModal('create-duel-modal');
-      });
-      if (!data.authenticated) {
-        document.getElementById('create-lobby-btn').disabled = true;
-      }
-    }
-
-    async function initHome() {
-      const data = LikeGodApp.getLandingData();
-      fillRankSelects();
-      setFeatureIcons();
-      renderHeroActions(data);
-      renderHeroSession(data);
-      renderNews(data.news || []);
-      renderActiveDuels(data.my_duels || []);
-      bindCreateDuelControls(data);
-    }
-
-    document.addEventListener('likeagod:language-changed', initHome);
-    LikeGodApp.boot({ titleKey: 'home.meta.title', onReady: initHome });
-  </script>
+  <script>App.start('home');</script>
 </body>
 </html>
