@@ -6,13 +6,19 @@
   <title>LikeGod.net</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
   <header class="site-header">
     <div class="site-header__inner">
-      <a class="brand" href="/main"><span class="brand__mark">LG</span><span class="brand__text"><span class="brand__title">LIKEGOD.NET</span><span class="brand__subtitle" data-i18n="common.brandSubtitle"></span></span></a>
+      <a class="brand" href="/main">
+        <span class="brand__mark">LG</span>
+        <span class="brand__text">
+          <span class="brand__title">LIKE<span class="brand__title-accent">GOD</span></span>
+          <span class="brand__subtitle" data-i18n="common.brandSubtitle"></span>
+        </span>
+      </a>
       <div id="navbar"></div>
     </div>
   </header>
@@ -25,8 +31,9 @@
           <h1 class="page-title" data-i18n="duels.hero.title"></h1>
           <p class="page-subtitle" data-i18n="duels.hero.subtitle"></p>
         </div>
+        <div class="toolbar" id="duels-hero-actions"></div>
       </div>
-      <div class="filter-grid">
+      <div class="filter-grid filter-grid--wide">
         <div class="form-group">
           <label for="filter-map" data-i18n="duels.filters.map"></label>
           <select id="filter-map">
@@ -68,6 +75,53 @@
     </section>
   </main>
 
+  <div class="modal-backdrop" id="duels-create-modal" aria-hidden="true">
+    <div class="modal modal--sheet">
+      <div class="modal__header">
+        <div>
+          <div class="section-title__eyebrow" data-i18n="home.create.eyebrow"></div>
+          <h3 data-i18n="home.create.modalTitle"></h3>
+          <p class="page-subtitle" data-i18n="home.create.modalSubtitle"></p>
+        </div>
+        <button class="modal__close" type="button" data-close-modal="duels-create-modal">×</button>
+      </div>
+      <div class="form-fields">
+        <div class="form-group">
+          <label for="create-bank" data-i18n="home.create.bank"></label>
+          <input id="create-bank" type="number" min="1" step="0.5" value="10">
+          <div class="chip-row chip-row--compact">
+            <button class="chip-button" type="button" data-duel-bank-preset="5">$5</button>
+            <button class="chip-button" type="button" data-duel-bank-preset="10">$10</button>
+            <button class="chip-button" type="button" data-duel-bank-preset="25">$25</button>
+            <button class="chip-button" type="button" data-duel-bank-preset="50">$50</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="create-map" data-i18n="home.create.map"></label>
+          <select id="create-map">
+            <option value="aim_redline">aim_redline</option>
+            <option value="aim_ag_texture">aim_ag_texture</option>
+            <option value="awp_india">awp_india</option>
+          </select>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="create-min-rank" data-i18n="home.create.minRank"></label>
+            <select id="create-min-rank"></select>
+          </div>
+          <div class="form-group">
+            <label for="create-max-rank" data-i18n="home.create.maxRank"></label>
+            <select id="create-max-rank"></select>
+          </div>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:20px;">
+        <button class="btn" type="button" id="duels-create-submit" data-i18n="home.create.submit"></button>
+        <button class="btn-ghost" type="button" data-close-modal="duels-create-modal" data-i18n="common.actions.close"></button>
+      </div>
+    </div>
+  </div>
+
   <footer class="site-footer" id="footer-shell"></footer>
   <script src="/static/js/i18n.js"></script>
   <script src="/static/js/theme.js"></script>
@@ -81,10 +135,32 @@
 
     function fillRankFilter() {
       const select = document.getElementById('filter-rank');
-      select.innerHTML = `<option value="all">${LikeGodApp.t('duels.filters.allRanks')}</option>` + Array.from({ length: 10 }, (_, index) => {
+      select.innerHTML = `<option value="all">${LikeGodApp.escapeHtml(LikeGodApp.t('duels.filters.allRanks'))}</option>` + Array.from({ length: 10 }, (_, index) => {
         const rank = index + 1;
-        return `<option value="${rank}">${LikeGodApp.t('common.rank', { rank })}</option>`;
+        return `<option value="${rank}">${LikeGodApp.escapeHtml(LikeGodApp.t('common.rank', { rank }))}</option>`;
       }).join('');
+
+      const createMin = document.getElementById('create-min-rank');
+      const createMax = document.getElementById('create-max-rank');
+      createMin.innerHTML = Array.from({ length: 10 }, (_, index) => {
+        const rank = index + 1;
+        return `<option value="${rank}">${LikeGodApp.escapeHtml(LikeGodApp.t('common.rank', { rank }))}</option>`;
+      }).join('');
+      createMax.innerHTML = Array.from({ length: 10 }, (_, index) => {
+        const rank = index + 1;
+        return `<option value="${rank}" ${rank === 10 ? 'selected' : ''}>${LikeGodApp.escapeHtml(LikeGodApp.t('common.rank', { rank }))}</option>`;
+      }).join('');
+    }
+
+    function renderHeroActions() {
+      const user = LikeGodApp.getUser();
+      const target = document.getElementById('duels-hero-actions');
+      if (user) {
+        target.innerHTML = `<button class="btn" type="button" id="open-duels-create-modal">${LikeGodApp.escapeHtml(LikeGodApp.t('common.actions.createDuel'))}</button>`;
+        document.getElementById('open-duels-create-modal').onclick = () => LikeGodApp.openModal('duels-create-modal');
+      } else {
+        target.innerHTML = `<a class="steam-btn" href="/auth/steam">${LikeGodApp.escapeHtml(LikeGodApp.t('common.nav.loginSteam'))}</a>`;
+      }
     }
 
     function renderDuels() {
@@ -97,34 +173,43 @@
       let filtered = allDuels.filter((duel) => {
         const matchesMap = mapFilter === 'all' || duel.map_name === mapFilter;
         const matchesBank = duel.total_bank >= bankMin && duel.total_bank <= bankMax;
-        const matchesRank = rankFilter === 'all' || duel.creator_rank === Number(rankFilter) || (duel.min_rank <= Number(rankFilter) && duel.max_rank >= Number(rankFilter));
+        const rankNumber = Number(rankFilter);
+        const matchesRank = rankFilter === 'all' || duel.creator_rank === rankNumber || (duel.min_rank <= rankNumber && duel.max_rank >= rankNumber);
         return matchesMap && matchesBank && matchesRank;
       });
 
       filtered = filtered.sort((a, b) => currentSort.direction === 'desc' ? b.total_bank - a.total_bank : a.total_bank - b.total_bank);
 
       if (!filtered.length) {
-        target.innerHTML = `<div class="state-card">${LikeGodApp.t('common.states.emptyDuels')}</div>`;
+        target.innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(LikeGodApp.t('common.states.emptyDuels'))}</div>`;
         return;
       }
 
       target.innerHTML = filtered.map((duel) => `
         <article class="duel-card">
-          <div>
-            <div class="meta-line">
-              <span>#${duel.id}</span>
-              <span>${duel.map_name}</span>
-              <span>${LikeGodApp.t('common.rankRange', { min: duel.min_rank, max: duel.max_rank })}</span>
-            </div>
-            <h3 style="margin:10px 0 8px;">${duel.creator_username}</h3>
-            <div class="duel-card__meta">
-              <span>${LikeGodApp.t('common.labels.elo')}: ${duel.creator_elo}</span>
-              <span>${LikeGodApp.t('common.labels.creatorRank')}: ${LikeGodApp.t('common.rank', { rank: duel.creator_rank })}</span>
+          <div class="duel-card__header">
+            <span class="status-badge badge-live">${LikeGodApp.escapeHtml(LikeGodApp.t('duels.card.open'))}</span>
+            <span class="meta-line">#${duel.id}</span>
+          </div>
+          <div class="duel-card__creator">
+            ${LikeGodApp.avatarMarkup(duel.creator_username, '', 'avatar')}
+            <div>
+              <h3>${LikeGodApp.escapeHtml(duel.creator_username)}</h3>
+              <div class="meta-line">${LikeGodApp.escapeHtml(LikeGodApp.t('common.rank', { rank: duel.creator_rank }))} • ELO ${LikeGodApp.escapeHtml(duel.creator_elo)}</div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-            <div class="duel-card__value">${LikeGodApp.formatMoney(duel.total_bank)}</div>
-            <a class="btn" href="/duel?id=${duel.id}">${LikeGodApp.t('common.actions.join')}</a>
+          <div class="duel-card__meta">
+            <span class="meta-chip">${LikeGodApp.icon('map')} ${LikeGodApp.escapeHtml(duel.map_name)}</span>
+            <span class="meta-chip">${LikeGodApp.icon('chart')} ${LikeGodApp.escapeHtml(LikeGodApp.t('common.rankRange', { min: duel.min_rank, max: duel.max_rank }))}</span>
+            <span class="meta-chip">${LikeGodApp.icon('coins')} ${LikeGodApp.escapeHtml(LikeGodApp.formatMoney(duel.total_bank))}</span>
+          </div>
+          <div class="duel-card__divider"></div>
+          <div class="duel-card__footer">
+            <div>
+              <div class="stat-card__label">${LikeGodApp.escapeHtml(LikeGodApp.t('duels.card.prizePool'))}</div>
+              <div class="duel-card__value">${LikeGodApp.escapeHtml(LikeGodApp.formatMoney(duel.total_bank))}</div>
+            </div>
+            <a class="btn" href="/duel?id=${duel.id}">${LikeGodApp.escapeHtml(LikeGodApp.t('common.actions.join'))}</a>
           </div>
         </article>
       `).join('');
@@ -135,18 +220,49 @@
         allDuels = await LikeGodApp.api('/api/v1/duels', { headers: {} });
         renderDuels();
       } catch (error) {
-        document.getElementById('duels-list').innerHTML = `<div class="state-card">${error.message}</div>`;
+        document.getElementById('duels-list').innerHTML = `<div class="state-card">${LikeGodApp.escapeHtml(error.message)}</div>`;
+      }
+    }
+
+    async function createDuelFromLobby() {
+      const button = document.getElementById('duels-create-submit');
+      const payload = {
+        total_bank: Number(document.getElementById('create-bank').value || 0),
+        map_name: document.getElementById('create-map').value,
+        min_rank: Number(document.getElementById('create-min-rank').value || 1),
+        max_rank: Number(document.getElementById('create-max-rank').value || 10)
+      };
+
+      LikeGodApp.setButtonBusy(button, true, LikeGodApp.t('home.create.submitLoading'));
+      try {
+        const result = await LikeGodApp.api('/api/v1/duels', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        window.location.href = `/duel?id=${result.duel_id}`;
+      } catch (error) {
+        LikeGodApp.showToast(error.message, 'error');
+      } finally {
+        LikeGodApp.setButtonBusy(button, false);
       }
     }
 
     function initDuelsPage() {
       fillRankFilter();
+      renderHeroActions();
       ['filter-map', 'filter-bank-min', 'filter-bank-max', 'filter-rank'].forEach((id) => {
         document.getElementById(id).oninput = renderDuels;
         document.getElementById(id).onchange = renderDuels;
       });
       document.getElementById('sort-bank-desc').onclick = () => { currentSort.direction = 'desc'; renderDuels(); };
       document.getElementById('sort-bank-asc').onclick = () => { currentSort.direction = 'asc'; renderDuels(); };
+      document.getElementById('duels-create-submit').onclick = createDuelFromLobby;
+      document.querySelectorAll('[data-duel-bank-preset]').forEach((button) => {
+        button.onclick = () => { document.getElementById('create-bank').value = button.dataset.duelBankPreset; };
+      });
+      document.querySelectorAll('[data-close-modal="duels-create-modal"]').forEach((button) => {
+        button.onclick = () => LikeGodApp.closeModal('duels-create-modal');
+      });
       loadDuels();
     }
 

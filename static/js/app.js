@@ -13,9 +13,76 @@ window.LikeGodApp = (() => {
   const i18n = window.LikeGodI18n;
   const themeTools = window.LikeGodTheme;
   const effectsTools = window.LikeGodEffects;
+  let globalUiBound = false;
 
   function t(key, params = {}) {
     return i18n.t(state.translations, key, params);
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function safeUrl(value, fallback = '#', options = {}) {
+    const raw = String(value || '').trim();
+    if (!raw) return fallback;
+    if (raw.startsWith('#')) return options.allowHash ? raw : fallback;
+    if (raw.startsWith('/')) return raw;
+    if (options.allowDataImage && /^data:image\//i.test(raw)) return raw;
+
+    try {
+      const parsed = new URL(raw, window.location.origin);
+      if (['http:', 'https:'].includes(parsed.protocol)) return parsed.href;
+    } catch (error) {
+      return fallback;
+    }
+
+    return fallback;
+  }
+
+  function getInitials(value) {
+    const letters = String(value || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((chunk) => chunk[0]?.toUpperCase() || '')
+      .join('');
+    return letters || 'LG';
+  }
+
+  function avatarMarkup(name, imageUrl = '', className = 'avatar') {
+    const safeName = escapeHtml(name || 'Player');
+    const safeSrc = safeUrl(imageUrl, '', { allowDataImage: true });
+    if (safeSrc) {
+      return `<span class="${className}"><img src="${safeSrc}" alt="${safeName}"></span>`;
+    }
+    return `<span class="${className} ${className}--token" aria-hidden="true">${escapeHtml(getInitials(name))}</span>`;
+  }
+
+  function icon(name, className = '') {
+    const cls = className ? ` class="${className}"` : '';
+    const icons = {
+      crosshair: `<svg${cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"></circle><path d="M12 5V3M12 21v-2M19 12h2M3 12h2M17 7l1.5-1.5M5.5 18.5 7 17M17 17l1.5 1.5M5.5 5.5 7 7"></path></svg>`,
+      wallet: `<svg${cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path><path d="M3 7h18v10H3z"></path><path d="M16 12h.01"></path></svg>`,
+      swords: `<svg${cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 17.5 5-5"></path><path d="m3 21 6.5-6.5"></path><path d="m12 8 4-4 4 4-4 4"></path><path d="m8 12-4 4 4 4 4-4"></path><path d="m13 13 6 6"></path><path d="m5 5 6 6"></path></svg>`,
+      shield: `<svg${cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path><path d="m9 12 2 2 4-4"></path></svg>`,
+      trophy: `<svg${cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"></path><path d="M17 5h3v2a4 4 0 0 1-4 4"></path><path d="M7 5H4v2a4 4 0 0 0 4 4"></path></svg>`,
+      globe: `<svg${cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20"></path><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"></path></svg>`,
+      map: `<svg${cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-12"></path><path d="m10 4 6 3"></path><path d="m4 6 6-2v14l-6 2V6Z"></path><path d="m14 6 6-2v14l-6 2V6Z"></path></svg>`,
+      coins: `<svg${cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"></ellipse><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"></path><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"></path></svg>`,
+      chart: `<svg${cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"></path><path d="m19 9-5 5-4-4-3 3"></path></svg>`,
+      clock: `<svg${cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>`,
+      sparkles: `<svg${cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 1.9 4.1L18 9l-4.1 1.9L12 15l-1.9-4.1L6 9l4.1-1.9L12 3Z"></path><path d="M5 19l.9 2L8 22l-2.1.9L5 25l-.9-2.1L2 22l2.1-.9L5 19Z"></path><path d="M19 14l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2Z"></path></svg>`,
+      menu: `<svg${cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>`,
+      chevronRight: `<svg${cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>`
+    };
+    return icons[name] || icons.chevronRight;
   }
 
   function formatMoney(value, currencySymbol = '$') {
@@ -25,6 +92,18 @@ window.LikeGodApp = (() => {
 
   function statusLabel(status) {
     return t(`statuses.${status}`) === `statuses.${status}` ? status : t(`statuses.${status}`);
+  }
+
+  function setButtonBusy(button, isBusy, label) {
+    if (!button) return;
+    if (isBusy) {
+      button.dataset.originalHtml = button.innerHTML;
+      button.disabled = true;
+      button.innerHTML = `<span class="spinner" aria-hidden="true"></span><span>${escapeHtml(label || t('common.states.loading'))}</span>`;
+      return;
+    }
+    button.disabled = false;
+    if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml;
   }
 
   async function api(url, options = {}) {
@@ -76,6 +155,44 @@ window.LikeGodApp = (() => {
     return t('common.nav.loginSteam');
   }
 
+  function getWalletHref() {
+    return state.user ? `/p/${encodeURIComponent(state.user.username)}` : '/premium';
+  }
+
+  function getHowHref() {
+    return '/main#how-it-works';
+  }
+
+  function bindGlobalUiEvents() {
+    if (globalUiBound) return;
+    globalUiBound = true;
+
+    document.addEventListener('click', (event) => {
+      const languageSwitch = document.getElementById('language-switch');
+      if (languageSwitch && !languageSwitch.contains(event.target)) {
+        languageSwitch.classList.remove('is-open');
+      }
+
+      const openNav = document.getElementById('main-nav');
+      const navToggle = document.getElementById('nav-toggle');
+      if (openNav?.classList.contains('is-open') && !openNav.contains(event.target) && !navToggle?.contains(event.target)) {
+        openNav.classList.remove('is-open');
+      }
+
+      const backdrop = event.target.closest('.modal-backdrop');
+      if (backdrop && event.target === backdrop) {
+        closeModal(backdrop.id);
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        document.querySelectorAll('.modal-backdrop.is-open').forEach((modal) => modal.classList.remove('is-open'));
+        document.body.classList.remove('modal-open');
+      }
+    });
+  }
+
   function renderNavbar() {
     const mount = document.getElementById('navbar');
     if (!mount) return;
@@ -86,47 +203,60 @@ window.LikeGodApp = (() => {
     const languageItems = i18n.languageOptions.map((option) => `
       <button type="button" class="language-option ${option.code === state.lang ? 'is-active' : ''}" data-language-option="${option.code}">
         <span>${option.flag}</span>
-        <span>${option.name}</span>
+        <span>${escapeHtml(option.name)}</span>
       </button>
     `).join('');
 
     const authActions = state.user
       ? `
-        <span class="balance-pill">${t('common.nav.balance')}: ${formatMoney(state.user.balance || 0)}</span>
-        <button class="btn-ghost" type="button" data-open-payment="deposit">${t('common.nav.deposit')}</button>
-        ${state.user.role === 'admin' ? `<a class="nav-link ${activeClass('/admin')}" href="/admin">${t('common.nav.admin')}</a>` : ''}
-        <a class="nav-link ${activeClass(`/p/${state.user.username}`)}" href="/p/${state.user.username}">${t('common.nav.profile')}</a>
-        <a class="nav-link" href="/auth/logout">${t('common.nav.logout')}</a>
+        <a class="wallet-chip" href="${getWalletHref()}">
+          ${icon('wallet', 'wallet-chip__icon')}
+          <span class="wallet-chip__copy">
+            <small>${escapeHtml(t('common.nav.wallet'))}</small>
+            <strong>${escapeHtml(formatMoney(state.user.balance || 0))}</strong>
+          </span>
+        </a>
+        <button class="btn-ghost btn-ghost--compact" type="button" data-open-payment="deposit">${escapeHtml(t('common.nav.deposit'))}</button>
+        ${state.user.role === 'admin' ? `<a class="nav-link ${activeClass('/admin')}" href="/admin">${escapeHtml(t('common.nav.admin'))}</a>` : ''}
+        <a class="user-chip" href="${getWalletHref()}">
+          ${avatarMarkup(state.user.username, state.user.avatar, 'avatar avatar--sm')}
+          <span class="user-chip__name">${escapeHtml(state.user.username)}</span>
+        </a>
+        <a class="btn-ghost btn-ghost--compact" href="/auth/logout">${escapeHtml(t('common.nav.logout'))}</a>
       `
       : `
-        <a class="steam-btn" href="/auth/steam" aria-label="${getSteamButtonLabel()}">
+        <a class="steam-btn" href="/auth/steam" aria-label="${escapeHtml(getSteamButtonLabel())}">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.98 3C7.58 3 4 6.58 4 10.98c0 3.53 2.3 6.53 5.49 7.59l2.39 1A3.87 3.87 0 0 0 19.65 18a3.85 3.85 0 0 0-3.85-3.85h-.17l-1.69-2.43v-.04a4.7 4.7 0 1 0-4.7 4.7h.1l2.41 1.71c0 .06-.01.13-.01.2a2.6 2.6 0 0 1-2.43-1.7A6.98 6.98 0 0 1 5.99 11 6.99 6.99 0 0 1 17 5.3a6.96 6.96 0 0 1 1.98 4.84c0 .3-.02.59-.06.88a4.84 4.84 0 0 0-3.12-1.13A4.85 4.85 0 1 0 20.65 15c.23-.63.35-1.31.35-2.02C21 7.48 16.5 3 11.98 3Zm0 6.54a2.24 2.24 0 1 1 0 4.49 2.24 2.24 0 0 1 0-4.49Zm3.82 6.08a2.39 2.39 0 1 1 0 4.77 2.39 2.39 0 0 1 0-4.77Z"/></svg>
-          <span>${getSteamButtonLabel()}</span>
+          <span>${escapeHtml(getSteamButtonLabel())}</span>
         </a>
       `;
 
     mount.innerHTML = `
       <div class="nav-shell">
-        <button class="nav-toggle" type="button" id="nav-toggle" aria-label="${t('common.nav.menu')}">☰</button>
+        <button class="nav-toggle" type="button" id="nav-toggle" aria-label="${escapeHtml(t('common.nav.menu'))}">
+          ${icon('menu', 'nav-toggle__icon')}
+        </button>
         <div class="main-nav" id="main-nav">
-          <div class="nav-links">
-            <a class="nav-link ${activeClass('/main')}" href="/main">${t('common.nav.home')}</a>
-            <a class="nav-link ${activeClass('/duels')}" href="/duels">${t('common.nav.duels')}</a>
-            <a class="nav-link ${activeClass('/premium')}" href="/premium">${t('common.nav.premium')}</a>
-          </div>
-          <div class="nav-actions">
-            <button type="button" class="theme-toggle ${state.theme === 1 ? 'is-light' : ''}" id="theme-toggle" aria-label="${t('common.nav.theme')}">
-              <span class="theme-toggle__icons"><span>🌙</span><span>☀️</span></span>
-              <span class="theme-toggle__knob"></span>
-            </button>
-            <div class="language-switch" id="language-switch">
-              <button type="button" class="language-switch__trigger" id="language-trigger" aria-label="${t('common.nav.language')}">
-                <span>${currentLanguage.flag}</span>
-                <span>${currentLanguage.label}</span>
+          <div class="main-nav__inner">
+            <nav class="nav-links">
+              <a class="nav-link ${activeClass('/duels')}" href="/duels">${escapeHtml(t('common.nav.duels'))}</a>
+              <a class="nav-link ${currentPath.startsWith('/p/') ? 'is-active' : ''}" href="${getWalletHref()}">${escapeHtml(t('common.nav.wallet'))}</a>
+              <a class="nav-link" href="${getHowHref()}">${escapeHtml(t('common.nav.howItWorks'))}</a>
+            </nav>
+            <div class="nav-actions">
+              <button type="button" class="theme-toggle ${state.theme === 1 ? 'is-light' : ''}" id="theme-toggle" aria-label="${escapeHtml(t('common.nav.theme'))}">
+                <span class="theme-toggle__icons"><span>🌙</span><span>☀️</span></span>
+                <span class="theme-toggle__knob"></span>
               </button>
-              <div class="language-switch__menu" id="language-menu">${languageItems}</div>
+              <div class="language-switch" id="language-switch">
+                <button type="button" class="language-switch__trigger" id="language-trigger" aria-label="${escapeHtml(t('common.nav.language'))}">
+                  <span>${currentLanguage.flag}</span>
+                  <span>${escapeHtml(currentLanguage.label)}</span>
+                </button>
+                <div class="language-switch__menu" id="language-menu">${languageItems}</div>
+              </div>
+              ${authActions}
             </div>
-            ${authActions}
           </div>
         </div>
       </div>
@@ -143,15 +273,13 @@ window.LikeGodApp = (() => {
     const navToggle = document.getElementById('nav-toggle');
     const nav = document.getElementById('main-nav');
     navToggle?.addEventListener('click', () => nav?.classList.toggle('is-open'));
+    nav?.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => nav.classList.remove('is-open')));
 
     const languageSwitch = document.getElementById('language-switch');
     const languageTrigger = document.getElementById('language-trigger');
     const languageMenu = document.getElementById('language-menu');
 
     languageTrigger?.addEventListener('click', () => languageSwitch?.classList.toggle('is-open'));
-    document.addEventListener('click', (event) => {
-      if (!languageSwitch?.contains(event.target)) languageSwitch?.classList.remove('is-open');
-    });
     languageMenu?.querySelectorAll('[data-language-option]').forEach((optionButton) => {
       optionButton.addEventListener('click', async () => {
         languageSwitch.classList.remove('is-open');
@@ -166,18 +294,26 @@ window.LikeGodApp = (() => {
 
     mount.innerHTML = `
       <div class="site-footer__inner">
-        <div>
-          <div class="brand__title">LIKEGOD.NET</div>
-          <p class="page-subtitle" data-i18n="footer.description"></p>
-          <p class="muted" data-i18n="footer.entity"></p>
+        <div class="footer-brand">
+          <a class="brand brand--footer" href="/main">
+            <span class="brand__mark">LG</span>
+            <span class="brand__text">
+              <span class="brand__title">LIKE<span class="brand__title-accent">GOD</span></span>
+              <span class="brand__subtitle">LIKEGOD.NET</span>
+            </span>
+          </a>
+          <p class="footer-note" data-i18n="footer.description"></p>
         </div>
         <div class="site-footer__links">
+          <a class="inline-link" href="/duels">${escapeHtml(t('common.nav.duels'))}</a>
+          <a class="inline-link" href="${getWalletHref()}">${escapeHtml(t('common.nav.wallet'))}</a>
+          <a class="inline-link" href="${getHowHref()}">${escapeHtml(t('common.nav.howItWorks'))}</a>
           <a class="inline-link" href="/terms" data-i18n="footer.terms"></a>
           <a class="inline-link" href="/privacy" data-i18n="footer.privacy"></a>
           <a class="inline-link" href="/refund" data-i18n="footer.refund"></a>
         </div>
-        <div>
-          <div class="info-pill">Telegram: <a href="https://t.me/likeagod_support" target="_blank" rel="noreferrer">@likeagod_support</a></div>
+        <div class="footer-meta">
+          <p class="muted" data-i18n="footer.disclaimer"></p>
           <p class="muted" data-i18n="footer.copy"></p>
         </div>
       </div>
@@ -186,6 +322,8 @@ window.LikeGodApp = (() => {
   }
 
   function ensureSharedUi() {
+    bindGlobalUiEvents();
+
     if (!document.getElementById('toast-container')) {
       const toasts = document.createElement('div');
       toasts.id = 'toast-container';
@@ -196,15 +334,15 @@ window.LikeGodApp = (() => {
     if (!document.getElementById('shared-payment-modal')) {
       const wrapper = document.createElement('div');
       wrapper.innerHTML = `
-        <div class="modal-backdrop" id="shared-payment-modal">
-          <div class="modal">
+        <div class="modal-backdrop" id="shared-payment-modal" aria-hidden="true">
+          <div class="modal modal--sheet">
             <div class="modal__header">
               <div>
                 <div class="section-title__eyebrow" data-i18n="common.modal.billingEyebrow"></div>
                 <h3 id="payment-modal-title"></h3>
                 <p class="page-subtitle" id="payment-modal-text"></p>
               </div>
-              <button class="modal__close" type="button" data-close-modal="shared-payment-modal">×</button>
+              <button class="modal__close" type="button" data-close-modal="shared-payment-modal" aria-label="${escapeHtml(t('common.actions.close'))}">×</button>
             </div>
             <div class="form-fields">
               <div class="form-group">
@@ -213,28 +351,31 @@ window.LikeGodApp = (() => {
               </div>
               <div class="form-group">
                 <label for="payment-amount-input" data-i18n="common.modal.amount"></label>
-                <input id="payment-amount-input" class="input" type="number" min="1" step="0.5" value="5">
+                <input id="payment-amount-input" class="input" type="number" min="1" step="0.5" value="10">
+                <div class="chip-row chip-row--compact" id="payment-presets">
+                  ${[5, 10, 25, 50, 100].map((amount) => `<button class="chip-button" type="button" data-payment-preset="${amount}">+${amount}</button>`).join('')}
+                </div>
               </div>
               <div class="form-group" id="payment-address-group" hidden>
                 <label for="payment-address-input" data-i18n="common.modal.telegram"></label>
                 <input id="payment-address-input" class="input" type="text" data-i18n-placeholder="common.modal.telegramPlaceholder">
               </div>
-              <div class="state-card" id="payment-warning" hidden data-i18n="common.modal.withdrawNotice"></div>
+              <div class="state-card state-card--warning" id="payment-warning" hidden data-i18n="common.modal.withdrawNotice"></div>
             </div>
-            <div class="form-actions" style="margin-top:18px;">
+            <div class="form-actions">
               <button class="btn" type="button" id="payment-submit-btn"></button>
               <button class="btn-ghost" type="button" data-close-modal="shared-payment-modal" data-i18n="common.actions.close"></button>
             </div>
           </div>
         </div>
-        <div class="modal-backdrop" id="shared-payment-result-modal">
-          <div class="modal">
+        <div class="modal-backdrop" id="shared-payment-result-modal" aria-hidden="true">
+          <div class="modal modal--compact">
             <div class="modal__header">
               <div>
                 <div class="section-title__eyebrow" data-i18n="common.modal.invoiceReady"></div>
                 <h3 data-i18n="common.modal.completePayment"></h3>
               </div>
-              <button class="modal__close" type="button" data-close-modal="shared-payment-result-modal">×</button>
+              <button class="modal__close" type="button" data-close-modal="shared-payment-result-modal" aria-label="${escapeHtml(t('common.actions.close'))}">×</button>
             </div>
             <p class="page-subtitle" data-i18n="common.modal.invoiceText"></p>
             <div class="form-actions">
@@ -248,16 +389,33 @@ window.LikeGodApp = (() => {
     }
 
     document.querySelectorAll('[data-close-modal]').forEach((button) => {
-      button.addEventListener('click', () => closeModal(button.dataset.closeModal));
+      button.onclick = () => closeModal(button.dataset.closeModal);
+    });
+
+    document.querySelectorAll('[data-payment-preset]').forEach((button) => {
+      button.onclick = () => {
+        const amount = Number(button.dataset.paymentPreset);
+        document.getElementById('payment-amount-input').value = String(amount);
+      };
     });
   }
 
   function openModal(id) {
-    document.getElementById(id)?.classList.add('is-open');
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
   }
 
   function closeModal(id) {
-    document.getElementById(id)?.classList.remove('is-open');
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    if (!document.querySelector('.modal-backdrop.is-open')) {
+      document.body.classList.remove('modal-open');
+    }
   }
 
   function showToast(message, variant = 'info') {
@@ -298,6 +456,11 @@ window.LikeGodApp = (() => {
       const submitButton = document.getElementById('payment-submit-btn');
       const addressGroup = document.getElementById('payment-address-group');
       const warning = document.getElementById('payment-warning');
+      const amountInput = document.getElementById('payment-amount-input');
+      const addressInput = document.getElementById('payment-address-input');
+
+      amountInput.value = type === 'withdraw' ? '5' : '10';
+      addressInput.value = '';
 
       if (type === 'withdraw') {
         modalTitle.textContent = t('common.modal.withdrawTitle');
@@ -323,6 +486,7 @@ window.LikeGodApp = (() => {
   }
 
   async function submitPaymentModal() {
+    const submitButton = document.getElementById('payment-submit-btn');
     const methodId = Number(state.selectedPaymentMethodId);
     const amount = Number(document.getElementById('payment-amount-input').value || 0);
     const address = document.getElementById('payment-address-input').value.trim();
@@ -338,6 +502,8 @@ window.LikeGodApp = (() => {
       return;
     }
 
+    setButtonBusy(submitButton, true, t('common.states.loading'));
+
     try {
       let payload;
       if (type === 'withdraw') {
@@ -352,7 +518,7 @@ window.LikeGodApp = (() => {
           body: JSON.stringify({ amount, method_id: methodId })
         });
         if (payload.pay_url) {
-          document.getElementById('payment-result-link').href = payload.pay_url;
+          document.getElementById('payment-result-link').href = safeUrl(payload.pay_url, '#');
           openModal('shared-payment-result-modal');
         }
         showToast(t('common.toasts.invoiceCreated'), 'success');
@@ -364,6 +530,8 @@ window.LikeGodApp = (() => {
       renderNavbar();
     } catch (error) {
       showToast(error.message, 'error');
+    } finally {
+      setButtonBusy(submitButton, false);
     }
   }
 
@@ -444,12 +612,19 @@ window.LikeGodApp = (() => {
 
   return {
     api,
+    avatarMarkup,
     boot,
     closeModal,
+    escapeHtml,
     formatMoney,
+    getInitials,
+    icon,
+    openModal,
     openPaymentModal,
     refreshSession,
     renderNavbar,
+    safeUrl,
+    setButtonBusy,
     setLanguage,
     setTheme,
     setEffects,
