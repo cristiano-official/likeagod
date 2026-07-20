@@ -14,7 +14,8 @@
       "balance": "Saldo",
       "language": "Idioma",
       "menu": "Abrir navegación",
-      "deposit": "Depositar"
+      "deposit": "Depositar",
+      "theme": "Tema"
     },
     "actions": {
       "open": "Abrir",
@@ -44,7 +45,8 @@
     "errors": {
       "authRequired": "Primero inicia sesión.",
       "invalidAmount": "Introduce un importe válido.",
-      "genericError": "La solicitud falló. Inténtalo de nuevo."
+      "genericError": "La solicitud falló. Inténtalo de nuevo.",
+      "selectMethod": "Primero elige un método de pago."
     },
     "toasts": {
       "saved": "Cambios guardados.",
@@ -88,14 +90,15 @@
     },
     "hero": {
       "eyebrow": "Duelos por dinero CS2",
-      "title": "Crea un duelo, entra al servidor y pelea por el bote con tu aim.",
-      "subtitle": "Una experiencia lista para producción para jugadores de Steam: depósitos, salas rankeadas y flujo manual de moderación para disputas.",
+      "title": "Duelos 1v1 de CS2 con dinero real: demuestra tu habilidad y gana el bote.",
+      "subtitle": "Emparejamiento por habilidad, creación instantánea de salas y pagos transparentes en una arena premium.",
       "openDuels": "Ver lobbies",
       "deposit": "Recargar saldo",
       "statusEyebrow": "Estado de sesión",
       "sessionTitle": "Resumen de cuenta",
       "guestTitle": "Necesitas iniciar sesión con Steam",
-      "guestText": "Inicia sesión para crear lobbies, depositar fondos y gestionar tu historial de duelos."
+      "guestText": "Inicia sesión para jugar 1v1 con apuestas reales y retiros rápidos.",
+      "guestValue": "Sin promesas falsas: reglas claras, comisiones visibles y soporte manual para disputas."
     },
     "news": {
       "eyebrow": "Feed de plataforma",
@@ -248,7 +251,13 @@
       "dark": "Oscuro",
       "light": "Claro",
       "bio": "Bio",
-      "bioPlaceholder": "Añade un estado corto o presentación…"
+      "bioPlaceholder": "Añade un estado corto o presentación…",
+      "effects": "Efectos visuales",
+      "effectType": "Tipo de efecto",
+      "effectRain": "Lluvia digital",
+      "effectSnow": "Nieve",
+      "effectsOn": "Activado",
+      "effectsOff": "Desactivado"
     }
   },
   "admin": {

@@ -33,6 +33,8 @@ def test_shared_frontend_pages_use_static_assets():
         assert response.status_code == 200
         assert '/static/css/style.css' in response.text
         assert '/static/js/app.js' in response.text
+        assert '/static/js/theme.js' in response.text
+        assert '/static/js/effects.js' in response.text
 
 
 def test_legal_pages_are_template_backed():
@@ -48,6 +50,8 @@ def test_static_i18n_assets_are_served():
     assert response.status_code == 200
     payload = response.json()
     assert payload['common']['nav']['home'] == 'Home'
+    assert payload['common']['nav']['theme'] == 'Theme'
+    assert payload['home']['hero']['guestValue']
     assert 'legal' in payload
 
 

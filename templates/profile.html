@@ -6,7 +6,7 @@
   <title>LikeGod.net</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
@@ -76,9 +76,23 @@
             </div>
             <div class="form-group">
               <label for="settings-theme" data-i18n="profile.settings.theme"></label>
-              <select id="settings-theme">
-                <option value="0" data-i18n="profile.settings.dark"></option>
-                <option value="1" data-i18n="profile.settings.light"></option>
+              <button type="button" id="settings-theme-toggle" class="theme-toggle" aria-label="Toggle light/dark theme">
+                <span class="theme-toggle__icons"><span>🌙</span><span>☀️</span></span>
+                <span class="theme-toggle__knob"></span>
+              </button>
+            </div>
+            <div class="form-group">
+              <label data-i18n="profile.settings.effects"></label>
+              <div class="switch-row">
+                <button type="button" id="settings-effects-toggle" class="switch-toggle" aria-label="Toggle visual effects"></button>
+                <span id="settings-effects-status"></span>
+              </div>
+            </div>
+            <div class="form-group" id="settings-effects-type-group">
+              <label for="settings-effect-type" data-i18n="profile.settings.effectType"></label>
+              <select id="settings-effect-type">
+                <option value="digital_rain" data-i18n="profile.settings.effectRain"></option>
+                <option value="snow" data-i18n="profile.settings.effectSnow"></option>
               </select>
             </div>
             <div class="form-group">
@@ -95,10 +109,16 @@
   </main>
 
   <footer class="site-footer" id="footer-shell"></footer>
+  <script src="/static/js/i18n.js"></script>
+  <script src="/static/js/theme.js"></script>
+  <script src="/static/js/payments.js"></script>
+  <script src="/static/js/effects.js"></script>
+  <script src="/static/js/slider.js"></script>
   <script src="/static/js/app.js"></script>
   <script>
     const profileUsername = window.location.pathname.split('/').pop();
     let ownProfilePayload = null;
+    let effectsEnabled;
 
     function fillLanguageSelect(selected) {
       const languages = ['en', 'ru', 'zh', 'es'];
@@ -108,21 +128,38 @@
 
     function renderProfileStats(stats) {
       const cards = [
-        { label: LikeGodApp.t('profile.stats.elo'), value: stats.elo },
-        { label: LikeGodApp.t('profile.stats.rank'), value: LikeGodApp.t('common.rank', { rank: stats.rank }) },
-        { label: LikeGodApp.t('profile.stats.winrate'), value: `${stats.winrate}%` },
-        { label: LikeGodApp.t('profile.stats.duels'), value: stats.duels },
-        { label: LikeGodApp.t('profile.stats.wins'), value: stats.wins },
-        { label: LikeGodApp.t('profile.stats.kills'), value: stats.kills },
-        { label: LikeGodApp.t('profile.stats.deaths'), value: stats.deaths },
-        { label: LikeGodApp.t('profile.stats.kd'), value: stats.deaths ? (stats.kills / stats.deaths).toFixed(2) : stats.kills.toFixed(2) }
+        { icon: '⚡', label: LikeGodApp.t('profile.stats.elo'), value: stats.elo },
+        { icon: '🏅', label: LikeGodApp.t('profile.stats.rank'), value: LikeGodApp.t('common.rank', { rank: stats.rank }) },
+        { icon: '🎯', label: LikeGodApp.t('profile.stats.winrate'), value: `${stats.winrate}%`, progress: stats.winrate },
+        { icon: '🎮', label: LikeGodApp.t('profile.stats.duels'), value: stats.duels },
+        { icon: '🏆', label: LikeGodApp.t('profile.stats.wins'), value: stats.wins },
+        { icon: '💥', label: LikeGodApp.t('profile.stats.kills'), value: stats.kills },
+        { icon: '🛡️', label: LikeGodApp.t('profile.stats.deaths'), value: stats.deaths },
+        { icon: '📈', label: LikeGodApp.t('profile.stats.kd'), value: stats.deaths ? (stats.kills / stats.deaths).toFixed(2) : stats.kills.toFixed(2) }
       ];
       document.getElementById('profile-stats-grid').innerHTML = cards.map((card) => `
         <article class="stat-card">
+          <div class="stat-card__icon">${card.icon}</div>
           <div class="stat-card__label">${card.label}</div>
           <div class="stat-card__value">${card.value}</div>
+          ${card.progress !== undefined ? `<div class="progress" role="progressbar" aria-valuenow="${Math.max(0, Math.min(100, Number(card.progress || 0)))}" aria-valuemin="0" aria-valuemax="100"><span style="width:${Math.max(0, Math.min(100, Number(card.progress || 0)))}%"></span></div>` : ''}
         </article>
       `).join('');
+    }
+
+    function renderThemeToggle(theme) {
+      const themeToggle = document.getElementById('settings-theme-toggle');
+      if (!themeToggle) return;
+      themeToggle.classList.toggle('is-light', Number(theme) === 1);
+    }
+
+    function renderEffectsSettings() {
+      const effectsToggle = document.getElementById('settings-effects-toggle');
+      const status = document.getElementById('settings-effects-status');
+      const typeGroup = document.getElementById('settings-effects-type-group');
+      effectsToggle.classList.toggle('is-on', effectsEnabled);
+      status.textContent = effectsEnabled ? LikeGodApp.t('profile.settings.effectsOn') : LikeGodApp.t('profile.settings.effectsOff');
+      typeGroup.style.display = effectsEnabled ? 'grid' : 'none';
     }
 
     function renderOwnProfilePanel(me) {
@@ -130,11 +167,28 @@
       document.getElementById('profile-billing-card').style.display = 'block';
       document.getElementById('profile-settings-card').style.display = 'block';
       fillLanguageSelect(me.language || 'en');
-      document.getElementById('settings-theme').value = String(me.theme ?? 0);
+      renderThemeToggle(me.theme ?? 0);
       document.getElementById('settings-bio').value = ownProfilePayload.bio || '';
+      const effectState = LikeGodApp.getEffectsState();
+      effectsEnabled = effectState.enabled;
+      document.getElementById('settings-effect-type').value = effectState.type || 'digital_rain';
+      renderEffectsSettings();
       document.getElementById('profile-deposit-btn').onclick = () => LikeGodApp.openPaymentModal('deposit', { onSuccess: loadProfile });
       document.getElementById('profile-withdraw-btn').onclick = () => LikeGodApp.openPaymentModal('withdraw', { onSuccess: loadProfile });
       document.getElementById('save-profile-btn').onclick = saveProfileSettings;
+      document.getElementById('settings-theme-toggle').onclick = async () => {
+        const nextTheme = LikeGodApp.getTheme() === 1 ? 0 : 1;
+        await LikeGodApp.setTheme(nextTheme, true);
+        renderThemeToggle(nextTheme);
+      };
+      document.getElementById('settings-effects-toggle').onclick = async () => {
+        effectsEnabled = !effectsEnabled;
+        await LikeGodApp.setEffects(effectsEnabled, document.getElementById('settings-effect-type').value, false);
+        renderEffectsSettings();
+      };
+      document.getElementById('settings-effect-type').onchange = async (event) => {
+        await LikeGodApp.setEffects(effectsEnabled, event.target.value, false);
+      };
 
       const invoiceBox = document.getElementById('active-invoice');
       if (me.active_invoice) {
@@ -181,10 +235,13 @@
           method: 'POST',
           body: JSON.stringify({
             language: document.getElementById('settings-language').value,
-            theme: Number(document.getElementById('settings-theme').value),
+            theme: LikeGodApp.getTheme(),
+            effects: effectsEnabled,
             bio: document.getElementById('settings-bio').value
           })
         });
+        await LikeGodApp.setLanguage(document.getElementById('settings-language').value, false);
+        await LikeGodApp.setEffects(effectsEnabled, document.getElementById('settings-effect-type').value, false);
         LikeGodApp.showToast(LikeGodApp.t('common.toasts.saved'), 'success');
         await LikeGodApp.refreshSession();
         await loadProfile();

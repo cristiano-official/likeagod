@@ -14,7 +14,8 @@
       "balance": "Balance",
       "language": "Language",
       "menu": "Open navigation",
-      "deposit": "Deposit"
+      "deposit": "Deposit",
+      "theme": "Theme"
     },
     "actions": {
       "open": "Open",
@@ -44,7 +45,8 @@
     "errors": {
       "authRequired": "Sign in first to use this action.",
       "invalidAmount": "Enter a valid amount.",
-      "genericError": "Request failed. Please try again."
+      "genericError": "Request failed. Please try again.",
+      "selectMethod": "Select a payment method first."
     },
     "toasts": {
       "saved": "Changes saved.",
@@ -88,14 +90,15 @@
     },
     "hero": {
       "eyebrow": "CS2 money duels",
-      "title": "Launch a duel, bring your aim, and fight for the bank.",
-      "subtitle": "A production-ready lobby experience for Steam players: deposits, ranked duel rooms, and manual moderation flow for disputes.",
+      "title": "1v1 CS2 duels for real stakes — prove your skill, take the bank.",
+      "subtitle": "Skill-based matchmaking, instant room setup, and transparent payouts in one premium arena.",
       "openDuels": "Browse open lobbies",
       "deposit": "Top up balance",
       "statusEyebrow": "Session status",
       "sessionTitle": "Account overview",
       "guestTitle": "Steam sign-in is required",
-      "guestText": "Sign in to create lobbies, deposit funds, and manage your duel history."
+      "guestText": "Sign in to launch 1v1 duels with real-money stakes and instant payout flow.",
+      "guestValue": "No fake promises: fair matchmaking, visible fees, and manual dispute support."
     },
     "news": {
       "eyebrow": "Platform feed",
@@ -248,7 +251,13 @@
       "dark": "Dark",
       "light": "Light",
       "bio": "Bio",
-      "bioPlaceholder": "Add a short status or intro…"
+      "bioPlaceholder": "Add a short status or intro…",
+      "effects": "Visual effects",
+      "effectType": "Effect type",
+      "effectRain": "Digital rain",
+      "effectSnow": "Snow",
+      "effectsOn": "Enabled",
+      "effectsOff": "Disabled"
     }
   },
   "admin": {

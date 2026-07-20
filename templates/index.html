@@ -6,7 +6,7 @@
   <title>LikeGod.net</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
@@ -129,9 +129,15 @@
   </main>
 
   <footer class="site-footer" id="footer-shell"></footer>
+  <script src="/static/js/i18n.js"></script>
+  <script src="/static/js/theme.js"></script>
+  <script src="/static/js/payments.js"></script>
+  <script src="/static/js/effects.js"></script>
+  <script src="/static/js/slider.js"></script>
   <script src="/static/js/app.js"></script>
   <script>
     const ranks = Array.from({ length: 10 }, (_, index) => index + 1);
+    let newsCarouselController = null;
 
     function fillRankSelects() {
       const minSelect = document.getElementById('min_rank');
@@ -146,11 +152,14 @@
         target.innerHTML = `
           <h3>${LikeGodApp.t('home.hero.guestTitle')}</h3>
           <p class="page-subtitle">${LikeGodApp.t('home.hero.guestText')}</p>
+          <p class="muted">${LikeGodApp.t('home.hero.guestValue')}</p>
           <a class="steam-btn" href="/auth/steam">${LikeGodApp.t('common.nav.loginSteam')}</a>
         `;
         return;
       }
 
+      const stats = data.stats || {};
+      const winrate = Number(stats.winrate || 0);
       target.innerHTML = `
         <div class="user-summary">
           <div class="avatar"><img src="${data.user.avatar || ''}" alt="avatar"></div>
@@ -162,6 +171,21 @@
             </div>
           </div>
         </div>
+        <div class="compact-stats">
+          <div class="compact-stat">
+            <small>${LikeGodApp.t('profile.stats.elo')}</small>
+            <strong>${stats.elo_val || 1000}</strong>
+          </div>
+          <div class="compact-stat">
+            <small>${LikeGodApp.t('profile.stats.rank')}</small>
+            <strong>${LikeGodApp.t('common.rank', { rank: stats.rank || 1 })}</strong>
+          </div>
+          <div class="compact-stat">
+            <small>${LikeGodApp.t('profile.stats.winrate')}</small>
+            <strong>${winrate}%</strong>
+            <div class="progress" role="progressbar" aria-valuenow="${Math.max(0, Math.min(100, winrate))}" aria-valuemin="0" aria-valuemax="100"><span style="width:${Math.max(0, Math.min(100, winrate))}%"></span></div>
+          </div>
+        </div>
       `;
     }
 
@@ -171,16 +195,29 @@
         target.innerHTML = `<div class="state-card">${LikeGodApp.t('common.states.emptyNews')}</div>`;
         return;
       }
-      target.innerHTML = news.map((item) => `
-        <article class="news-card">
-          <div class="news-card__image" style="background-image:url('${item.image_path || ''}')"></div>
-          <div>
-            <h3 style="margin:0 0 8px;">${item.title}</h3>
-            <p class="muted">${new Date(item.created_at).toLocaleDateString()}</p>
+      target.innerHTML = `
+        <div class="news-carousel" id="news-carousel">
+          <button class="carousel-arrow carousel-arrow--prev" type="button" data-carousel-prev aria-label="Previous slide">‹</button>
+          <button class="carousel-arrow carousel-arrow--next" type="button" data-carousel-next aria-label="Next slide">›</button>
+          <div class="news-carousel__viewport">
+            <div class="news-carousel__track" data-carousel-track>
+              ${news.map((item) => `
+                <article class="news-carousel__slide" data-carousel-slide style="background-image:url('${item.image_path || ''}')">
+                  <div class="news-carousel__content">
+                    <h3 class="news-carousel__title">${item.title}</h3>
+                    <div class="news-carousel__date">${new Date(item.created_at).toLocaleDateString()}</div>
+                    ${item.btn_text && item.btn_url ? `<a class="btn" href="${item.btn_url}" target="_blank" rel="noreferrer">${item.btn_text}</a>` : ''}
+                  </div>
+                </article>
+              `).join('')}
+            </div>
           </div>
-          ${item.btn_text && item.btn_url ? `<a class="btn-ghost" href="${item.btn_url}">${item.btn_text}</a>` : ''}
-        </article>
-      `).join('');
+          <div class="carousel-dots" data-carousel-dots></div>
+        </div>
+      `;
+
+      newsCarouselController?.destroy?.();
+      newsCarouselController = LikeGodSlider.init(document.getElementById('news-carousel'), { auto: true, interval: 5200 });
     }
 
     function renderActiveDuels(duels) {

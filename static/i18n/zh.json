@@ -14,7 +14,8 @@
       "balance": "余额",
       "language": "语言",
       "menu": "打开导航",
-      "deposit": "充值"
+      "deposit": "充值",
+      "theme": "主题"
     },
     "actions": {
       "open": "打开",
@@ -44,7 +45,8 @@
     "errors": {
       "authRequired": "请先登录。",
       "invalidAmount": "请输入有效金额。",
-      "genericError": "请求失败，请重试。"
+      "genericError": "请求失败，请重试。",
+      "selectMethod": "请先选择支付方式。"
     },
     "toasts": {
       "saved": "更改已保存。",
@@ -88,14 +90,15 @@
     },
     "hero": {
       "eyebrow": "CS2 金钱对局",
-      "title": "创建对局，进入服务器，用枪法拿下整个奖池。",
-      "subtitle": "面向 Steam 玩家、可直接上线的大厅体验：充值、排名房间、以及争议比赛的人工处理流程。",
+      "title": "CS2 1v1 真实金额对决——用实力拿下奖金池。",
+      "subtitle": "基于实力匹配、快速开房、透明结算，打造高质感电竞竞技场。",
       "openDuels": "查看大厅",
       "deposit": "充值余额",
       "statusEyebrow": "会话状态",
       "sessionTitle": "账户概览",
       "guestTitle": "需要通过 Steam 登录",
-      "guestText": "登录后即可创建房间、充值并管理对局历史。"
+      "guestText": "登录后即可发起 1v1 真金对局并使用快速提现流程。",
+      "guestValue": "不夸大承诺：规则透明、费用可见、争议支持人工处理。"
     },
     "news": {
       "eyebrow": "平台动态",
@@ -248,7 +251,13 @@
       "dark": "深色",
       "light": "浅色",
       "bio": "Bio",
-      "bioPlaceholder": "写一句简短状态或介绍…"
+      "bioPlaceholder": "写一句简短状态或介绍…",
+      "effects": "视觉特效",
+      "effectType": "特效类型",
+      "effectRain": "数字雨",
+      "effectSnow": "雪花",
+      "effectsOn": "已开启",
+      "effectsOff": "已关闭"
     }
   },
   "admin": {
