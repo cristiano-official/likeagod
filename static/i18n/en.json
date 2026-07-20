@@ -1,0 +1,357 @@
+{
+  "common": {
+    "brandSubtitle": "CS2 duel control center",
+    "rank": "Rank {rank}",
+    "rankRange": "Ranks {min}–{max}",
+    "nav": {
+      "home": "Home",
+      "duels": "Duels",
+      "premium": "Premium",
+      "profile": "Profile",
+      "admin": "Admin",
+      "logout": "Logout",
+      "loginSteam": "Sign in through Steam",
+      "balance": "Balance",
+      "language": "Language",
+      "menu": "Open navigation",
+      "deposit": "Deposit"
+    },
+    "actions": {
+      "open": "Open",
+      "join": "Join duel",
+      "close": "Close",
+      "pay": "Open invoice",
+      "save": "Save changes",
+      "delete": "Delete",
+      "generateInvoice": "Generate invoice",
+      "requestPayout": "Request payout"
+    },
+    "modal": {
+      "billingEyebrow": "Billing",
+      "method": "Payment method",
+      "amount": "Amount",
+      "telegram": "Telegram ID or username",
+      "telegramPlaceholder": "123456789 or @username",
+      "withdrawNotice": "Open @CryptoBot first, otherwise the payout may fail and funds will be returned.",
+      "depositTitle": "Deposit balance",
+      "depositText": "Choose a gateway and amount to generate a payment invoice.",
+      "withdrawTitle": "Withdraw funds",
+      "withdrawText": "Withdrawals are sent through the configured CryptoBot payout method.",
+      "invoiceReady": "Invoice ready",
+      "completePayment": "Complete the payment",
+      "invoiceText": "The invoice opens in a new tab. Finish the payment there and then refresh your profile."
+    },
+    "errors": {
+      "authRequired": "Sign in first to use this action.",
+      "invalidAmount": "Enter a valid amount.",
+      "genericError": "Request failed. Please try again."
+    },
+    "toasts": {
+      "saved": "Changes saved.",
+      "invoiceCreated": "Invoice created successfully."
+    },
+    "states": {
+      "loading": "Loading…",
+      "emptyNews": "No announcements yet.",
+      "emptyDuels": "No duels found for the selected filters.",
+      "emptyRequests": "No join requests yet.",
+      "emptyHistory": "No transaction history yet.",
+      "emptyTariffs": "Premium tariffs have not been configured yet."
+    },
+    "labels": {
+      "balance": "Balance",
+      "language": "Language",
+      "bank": "Bank",
+      "elo": "ELO",
+      "creatorRank": "Creator rank"
+    }
+  },
+  "statuses": {
+    "waiting": "Waiting",
+    "ready": "Ready",
+    "playing": "Playing",
+    "processing": "Processing",
+    "disputed": "Disputed",
+    "completed": "Completed"
+  },
+  "footer": {
+    "description": "Money duels for CS2 with a focused dark UI, platform escrow, and manual-ready production deployment.",
+    "entity": "Merchant: Individual Entrepreneur Moskalenko A. A. • INN 972904931221",
+    "terms": "Terms of service",
+    "privacy": "Privacy policy",
+    "refund": "Refund policy",
+    "copy": "© 2026 LikeGod.net"
+  },
+  "home": {
+    "meta": {
+      "title": "LikeGod.net | Home"
+    },
+    "hero": {
+      "eyebrow": "CS2 money duels",
+      "title": "Launch a duel, bring your aim, and fight for the bank.",
+      "subtitle": "A production-ready lobby experience for Steam players: deposits, ranked duel rooms, and manual moderation flow for disputes.",
+      "openDuels": "Browse open lobbies",
+      "deposit": "Top up balance",
+      "statusEyebrow": "Session status",
+      "sessionTitle": "Account overview",
+      "guestTitle": "Steam sign-in is required",
+      "guestText": "Sign in to create lobbies, deposit funds, and manage your duel history."
+    },
+    "news": {
+      "eyebrow": "Platform feed",
+      "title": "Latest announcements",
+      "subtitle": "Launch notes, premium promos, and moderation updates appear here."
+    },
+    "activeDuels": {
+      "eyebrow": "My matches",
+      "title": "Your active duels"
+    },
+    "create": {
+      "eyebrow": "New lobby",
+      "title": "Create a duel room",
+      "subtitle": "Set the bank, pick a map, and restrict the allowed rank range.",
+      "bank": "Total bank",
+      "map": "Map",
+      "minRank": "Minimum rank",
+      "maxRank": "Maximum rank",
+      "submit": "Create duel"
+    },
+    "features": {
+      "eyebrow": "Why LikeGod",
+      "title": "Built for a clean first release",
+      "fast": {
+        "label": "Fast room setup",
+        "text": "Create a room in seconds with the current backend contract and lightweight frontend."
+      },
+      "escrow": {
+        "label": "Escrow aware",
+        "text": "Balance freeze, payout confirmation, and dispute states are visible directly in the UI."
+      },
+      "global": {
+        "label": "Multilingual UI",
+        "text": "English, Russian, Chinese, and Spanish dictionaries are loaded from shared JSON files."
+      }
+    }
+  },
+  "duels": {
+    "meta": {
+      "title": "LikeGod.net | Open duels"
+    },
+    "hero": {
+      "eyebrow": "Lobby browser",
+      "title": "Open duel lobbies",
+      "subtitle": "Filter rooms by map, bank, and rank band before sending a join request."
+    },
+    "filters": {
+      "map": "Map",
+      "bankMin": "Minimum bank",
+      "bankMax": "Maximum bank",
+      "rank": "Preferred rank",
+      "allRanks": "All ranks"
+    },
+    "list": {
+      "title": "Available rooms",
+      "subtitle": "Every card below preserves the existing duel API contract."
+    },
+    "sort": {
+      "high": "Highest bank",
+      "low": "Lowest bank"
+    }
+  },
+  "duel": {
+    "meta": {
+      "title": "LikeGod.net | Duel room"
+    },
+    "hero": {
+      "eyebrow": "Match room",
+      "title": "Duel room"
+    },
+    "info": {
+      "bank": "Prize bank",
+      "map": "Map",
+      "creatorShare": "Creator share",
+      "guestShare": "Guest share"
+    },
+    "actions": {
+      "title": "Room actions",
+      "subtitle": "Available actions change with the duel state and your role.",
+      "join": "Send join request",
+      "cancel": "Cancel duel",
+      "confirm": "Confirm result",
+      "dispute": "Open dispute",
+      "noActions": "No actions available right now."
+    },
+    "requests": {
+      "title": "Incoming requests",
+      "subtitle": "Creators can accept an opponent directly from this panel.",
+      "accept": "Accept challenger",
+      "hidden": "Requests are shown only to the duel creator while the lobby is waiting."
+    },
+    "guestWaiting": "Waiting for opponent",
+    "slotOpen": "Open slot",
+    "invalidId": "Missing duel id in the page URL.",
+    "toasts": {
+      "requestSent": "Join request sent.",
+      "cancelled": "Duel cancelled and creator funds returned.",
+      "accepted": "Opponent accepted.",
+      "confirmed": "Result confirmed.",
+      "disputed": "Duel moved to disputed status."
+    }
+  },
+  "profile": {
+    "meta": {
+      "title": "LikeGod.net | Profile"
+    },
+    "hero": {
+      "eyebrow": "Public profile",
+      "emptyBio": "This player has not added a bio yet.",
+      "standard": "Standard account"
+    },
+    "stats": {
+      "title": "Performance snapshot",
+      "subtitle": "Public duel metrics and rank indicators.",
+      "elo": "ELO",
+      "rank": "Rank",
+      "winrate": "Win rate",
+      "duels": "Duels",
+      "wins": "Wins",
+      "kills": "Kills",
+      "deaths": "Deaths",
+      "kd": "K/D"
+    },
+    "history": {
+      "title": "Transaction history",
+      "subtitle": "Deposits, withdrawals, and payout destinations for the current account.",
+      "columns": {
+        "date": "Date",
+        "type": "Type",
+        "amount": "Amount",
+        "destination": "Destination",
+        "status": "Status"
+      }
+    },
+    "billing": {
+      "title": "Balance actions",
+      "subtitle": "Use the shared modal for deposits and payouts.",
+      "deposit": "Deposit funds",
+      "withdraw": "Withdraw funds",
+      "activeInvoice": "Pending invoice",
+      "activeInvoiceText": "A pending invoice for {amount} is still active.",
+      "cancelInvoice": "Cancel invoice",
+      "invoiceCancelled": "Invoice cancelled."
+    },
+    "settings": {
+      "title": "Profile settings",
+      "subtitle": "Update your frontend language, theme preference, and profile bio.",
+      "language": "Interface language",
+      "theme": "Theme",
+      "dark": "Dark",
+      "light": "Light",
+      "bio": "Bio",
+      "bioPlaceholder": "Add a short status or intro…"
+    }
+  },
+  "admin": {
+    "meta": {
+      "title": "LikeGod.net | Admin"
+    },
+    "hero": {
+      "eyebrow": "Operations",
+      "title": "Admin command panel",
+      "subtitle": "Moderate content, adjust balances, configure tariffs, and change platform commission."
+    },
+    "users": {
+      "title": "User adjustments",
+      "subtitle": "Target a username or SteamID to update balance or ELO.",
+      "target": "Target player",
+      "targetPlaceholder": "username or SteamID",
+      "amount": "Amount",
+      "addBalance": "Add balance",
+      "setElo": "Set ELO"
+    },
+    "news": {
+      "title": "Announcement composer",
+      "subtitle": "Create platform news cards shown on the home page.",
+      "listTitle": "Active announcements",
+      "form": {
+        "title": "Title",
+        "image": "Banner image URL",
+        "buttonText": "Button text",
+        "buttonUrl": "Button URL",
+        "submit": "Publish announcement"
+      }
+    },
+    "tariffs": {
+      "title": "Premium tariffs",
+      "subtitle": "Maintain the premium storefront without changing backend contracts.",
+      "duration": "Duration (months)",
+      "price": "Price",
+      "discount": "Discount label",
+      "submit": "Save tariff"
+    },
+    "commission": {
+      "title": "Platform commission",
+      "subtitle": "The payout engine uses this value for duel settlement.",
+      "label": "Commission percent",
+      "submit": "Save commission"
+    },
+    "errors": {
+      "forbidden": "Administrator access required."
+    },
+    "toasts": {
+      "newsSaved": "Announcement saved.",
+      "newsDeleted": "Announcement deleted.",
+      "tariffSaved": "Tariff saved.",
+      "commissionSaved": "Commission updated to"
+    }
+  },
+  "premium": {
+    "meta": {
+      "title": "LikeGod.net | Premium"
+    },
+    "hero": {
+      "eyebrow": "Premium access",
+      "title": "Upgrade your duel profile",
+      "subtitle": "Highlight your account, keep premium status visible, and prepare the storefront for future platform perks."
+    },
+    "status": {
+      "title": "Current status",
+      "guest": "Sign in to view your premium state.",
+      "active": "Premium active until",
+      "inactive": "Premium is not active on this account."
+    },
+    "cards": {
+      "title": "Tariff storefront",
+      "subtitle": "All cards below are loaded from the existing backend tariffs table.",
+      "months": "{months} month plan",
+      "cardText": "Premium badge, profile emphasis, and storefront-ready access.",
+      "buy": "Buy premium"
+    },
+    "toasts": {
+      "purchased": "Premium activated."
+    }
+  },
+  "legal": {
+    "common": {
+      "eyebrow": "Legal"
+    },
+    "terms": {
+      "metaTitle": "LikeGod.net | Terms",
+      "title": "Terms of service",
+      "updated": "Updated for production deployment",
+      "body": "<div class='state-card' style='text-align:left;margin-bottom:18px;'><strong>Important:</strong> By registering, funding your balance, or joining a duel, you accept these rules in full.</div>\n<h2>1. Platform status</h2>\n<p>LikeGod.net provides technical infrastructure for skill-based Counter-Strike 2 duels. The service is not a lottery, sportsbook, or casino product.</p>\n<h2>2. Accounts and access</h2>\n<p>Users sign in through Steam OpenID and are responsible for the security of their Steam account, profile data, and all actions performed through their session.</p>\n<h2>3. Duel mechanics</h2>\n<p>When a lobby is created, the creator's share is frozen from the balance. When an opponent is accepted, the opponent's share is frozen as well. The prize pool is released according to the recorded match result and the current platform commission.</p>\n<h2>4. Fair play</h2>\n<p>Cheats, smurfing, match fixing, account sharing, automation, or attempts to manipulate duel results may lead to balance reversal, duel cancellation, or a permanent ban.</p>\n<h2>5. Payments and withdrawals</h2>\n<p>Deposits and withdrawals are processed through connected payment providers. Gateway fees, availability, KYC checks, and processing delays depend on the selected provider.</p>\n<h2>6. Disputes</h2>\n<p>If the duel result is contested, a participant can place the duel into dispute status. The platform reserves the right to review logs, demos, and operator notes before final resolution.</p>\n<h2>7. Liability</h2>\n<p>The platform is provided on an “as is” basis. We are not liable for Valve, Steam, network, hosting, or third-party gateway outages that interrupt gameplay or payments.</p>\n<h2>8. Contact</h2>\n<p>Support: <a href='https://t.me/likeagod_support' target='_blank' rel='noreferrer'>@likeagod_support</a><br>Merchant: Individual Entrepreneur Moskalenko A. A. • INN 972904931221</p>"
+    },
+    "privacy": {
+      "metaTitle": "LikeGod.net | Privacy",
+      "title": "Privacy policy",
+      "updated": "Data handling overview",
+      "body": "<h2>1. Data we collect</h2>\n<p>We store public Steam profile data required for platform operation: SteamID, avatar URL, nickname, country, chosen language, gameplay statistics, and payment history records.</p>\n<h2>2. Why we process it</h2>\n<p>Data is used for authentication, duel creation, balance accounting, anti-fraud checks, dispute review, customer support, and language personalization.</p>\n<h2>3. Payment information</h2>\n<p>Payment instructions are processed through connected gateways. The platform stores only the identifiers, addresses, amounts, and statuses needed to reconcile deposits and withdrawals.</p>\n<h2>4. Security</h2>\n<p>We apply technical and organizational measures appropriate for a small production service, including session isolation, restricted admin access, and platform-side logging.</p>\n<h2>5. Deletion and requests</h2>\n<p>For account deletion or compliance requests, contact <a href='https://t.me/likeagod_support' target='_blank' rel='noreferrer'>@likeagod_support</a>.</p>"
+    },
+    "refund": {
+      "metaTitle": "LikeGod.net | Refunds",
+      "title": "Refund and withdrawal policy",
+      "updated": "Payment and cancellation rules",
+      "body": "<div class='state-card' style='text-align:left;margin-bottom:18px;'><strong>Important:</strong> completed digital services and already settled duel outcomes are generally non-refundable.</div>\n<h2>1. Deposits</h2>\n<p>Processed deposits move into the platform balance. Provider fees are charged by the selected gateway and are not refunded by the platform.</p>\n<h2>2. Withdrawals</h2>\n<p>Users can request withdrawals of available balance through the profile panel. Minimum limits and gateway-specific checks apply.</p>\n<h2>3. Lobby cancellation</h2>\n<p>If a waiting duel is cancelled before an opponent is accepted, the frozen creator share is returned back to the creator balance in full.</p>\n<h2>4. Premium and digital services</h2>\n<p>Activated premium access and already delivered digital services are non-refundable once consumed.</p>\n<h2>5. Support</h2>\n<p>If you encounter a payment mismatch, contact <a href='https://t.me/likeagod_support' target='_blank' rel='noreferrer'>@likeagod_support</a> with the transaction details.</p>"
+    }
+  }
+}

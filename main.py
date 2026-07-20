@@ -4,12 +4,14 @@ import jwt
 import random
 import hashlib
 import httpx
+from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Optional
 
-from fastapi import FastAPI, Request, HTTPException, Depends, Header
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from pysteamsignin.steamsignin import SteamSignIn
 from dotenv import load_dotenv
@@ -17,8 +19,23 @@ from dotenv import load_dotenv
 from models import User, UserStats, Duel, Base, News, DuelRequest, PremiumTariff, TransactionHistory, PlatformSettings, \
     PaymentMethod
 from database import engine, session_local
+from schemas import (
+    DuelDetailsResponse,
+    DuelLobbyResponse,
+    DuelRequestResponse,
+    MainPayloadResponse,
+    NewsResponse,
+    PaymentHistoryEntry,
+    PaymentMethodResponse,
+    ProfileResponse,
+    TariffResponse,
+    UserResponse,
+)
 
 load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
 
 app = FastAPI(
     title="LikeGod Esports Tournament Platform Core API",
@@ -26,6 +43,7 @@ app = FastAPI(
     version="1.9.7",
     docs_url="/docs"
 )
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.add_middleware(
     CORSMiddleware,
@@ -105,6 +123,12 @@ def require_auth(current_user: User = Depends(get_current_user)):
     return current_user
 
 
+def require_admin(current_user: User = Depends(require_auth)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Administrator access required")
+    return current_user
+
+
 def calculate_shares(creator_elo: int, opponent_elo: int, total_bank: float):
     weight_creator = 10 ** (creator_elo / 400)
     weight_opponent = 10 ** (opponent_elo / 400)
@@ -131,6 +155,56 @@ def check_active_match_existence(user_id: int, db: Session):
 def get_current_commission(db: Session) -> float:
     settings = db.query(PlatformSettings).first()
     return settings.commission_percent if settings else 10.0
+
+
+def get_rank_from_elo(elo: int) -> int:
+    return max(1, min(10, (elo - 700) // 100))
+
+
+def get_user_stats_or_404(user_id: int, db: Session) -> UserStats:
+    stats = db.query(UserStats).filter(UserStats.user_id == user_id).first()
+    if not stats:
+        raise HTTPException(status_code=404, detail="Player statistics not found")
+    return stats
+
+
+def get_duel_or_404(duel_id: int, db: Session) -> Duel:
+    duel = db.query(Duel).filter(Duel.id == duel_id).first()
+    if not duel:
+        raise HTTPException(status_code=404, detail="Duel not found")
+    return duel
+
+
+def serialize_duel(duel: Duel, db: Session) -> dict:
+    creator = db.query(User).filter(User.id == duel.creator_id).first()
+    creator_stats = get_user_stats_or_404(duel.creator_id, db)
+    guest = db.query(User).filter(User.id == duel.guest_id).first() if duel.guest_id else None
+    guest_stats = get_user_stats_or_404(duel.guest_id, db) if duel.guest_id else None
+    return {
+        "id": duel.id,
+        "creator_id": duel.creator_id,
+        "guest_id": duel.guest_id,
+        "creator_username": creator.username if creator else "Unknown",
+        "creator_elo": creator_stats.elo,
+        "creator_rank": get_rank_from_elo(creator_stats.elo),
+        "guest_username": guest.username if guest else None,
+        "guest_elo": guest_stats.elo if guest_stats else None,
+        "guest_rank": get_rank_from_elo(guest_stats.elo) if guest_stats else None,
+        "map_name": duel.map_name,
+        "total_bank": duel.total_bank,
+        "creator_score": duel.creator_score,
+        "guest_score": duel.guest_score,
+        "status": duel.status,
+        "creator_share": duel.creator_share,
+        "guest_share": duel.guest_share,
+    }
+
+
+def find_user_by_target(target: str, db: Session) -> User:
+    user = db.query(User).filter((User.username == target) | (User.steam_id == target)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
 
 # ==================== REST API ENDPOINTS ====================
@@ -178,9 +252,9 @@ async def logout():
     return response
 
 
-@app.get("/user/me", tags=["User Profile"])
+@app.get("/user/me", response_model=UserResponse, tags=["User Profile"])
 async def get_my_info(current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
-    st = db.query(UserStats).filter(UserStats.user_id == current_user.id).first()
+    st = get_user_stats_or_404(current_user.id, db)
 
     active_tx = db.query(TransactionHistory).filter(
         TransactionHistory.user_id == current_user.id,
@@ -202,7 +276,7 @@ async def get_my_info(current_user: User = Depends(require_auth), db: Session = 
         "language": current_user.language, "theme": current_user.theme, "effects": current_user.effects,
         "is_premium": current_user.is_premium, "premium_until": current_user.premium_until, "role": current_user.role,
         "balance": st.balance, "frozen_balance": st.frozen_balance, "elo": st.elo,
-        "rank": max(1, min(10, (st.elo - 700) // 100)),
+        "rank": get_rank_from_elo(st.elo),
         "active_invoice": active_invoice_payload
     }
 
@@ -225,17 +299,18 @@ async def update_profile(data: dict, current_user: User = Depends(require_auth),
     return {"status": "success"}
 
 
-@app.get("/user/by-name/{username}", tags=["User Profile"])
+@app.get("/user/by-name/{username}", response_model=ProfileResponse, tags=["User Profile"])
 async def get_public_profile(username: str, request: Request, db: Session = Depends(get_db)):
     u = db.query(User).filter(User.username == username).first()
     if not u: raise HTTPException(status_code=404, detail="Profile not found")
-    st = db.query(UserStats).filter(UserStats.user_id == u.id).first()
+    st = get_user_stats_or_404(u.id, db)
     curr = get_current_user(request, db)
     return {
         "id": u.id, "username": u.username, "avatar": u.avatar, "bio": u.bio, "country": u.country,
+        "language": u.language, "theme": u.theme, "effects": u.effects,
         "is_premium": u.is_premium,
         "stats": {"duels": st.duels, "wins": st.wins, "kills": st.kills, "deaths": st.deaths, "elo": st.elo,
-                  "rank": max(1, min(10, (st.elo - 700) // 100)),
+                  "rank": get_rank_from_elo(st.elo), "wagered_amount": st.wagered_amount,
                   "winrate": round((st.wins / st.duels * 100) if st.duels > 0 else 0, 1)},
         "is_own_profile": bool(curr and curr.id == u.id)
     }
@@ -262,20 +337,161 @@ async def create_duel(data: dict, current_user: User = Depends(require_auth), db
     return {"status": "success", "duel_id": duel.id}
 
 
-@app.get("/api/v1/duels", tags=["Matchmaking"])
+@app.get("/api/v1/duels", response_model=list[DuelLobbyResponse], tags=["Matchmaking"])
 async def list_lobbies(db: Session = Depends(get_db)):
     return [{
         "id": d.id, "map_name": d.map_name, "total_bank": d.total_bank, "min_rank": d.min_rank, "max_rank": d.max_rank,
         "creator_username": db.query(User.username).filter(User.id == d.creator_id).scalar(),
         "creator_elo": db.query(UserStats.elo).filter(UserStats.user_id == d.creator_id).scalar(),
-        "creator_rank": max(1, min(10, (
-                    db.query(UserStats.elo).filter(UserStats.user_id == d.creator_id).scalar() - 700) // 100))
+        "creator_rank": get_rank_from_elo(db.query(UserStats.elo).filter(UserStats.user_id == d.creator_id).scalar())
     } for d in db.query(Duel).filter(Duel.status == 'waiting', Duel.is_private == False).all()]
+
+
+@app.get("/api/v1/duels/{duel_id}", response_model=DuelDetailsResponse, tags=["Matchmaking"])
+async def get_duel_details(duel_id: int, db: Session = Depends(get_db)):
+    duel = get_duel_or_404(duel_id, db)
+    return serialize_duel(duel, db)
+
+
+@app.post("/api/v1/duels/{duel_id}/request", tags=["Matchmaking"])
+async def create_duel_request(duel_id: int, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    duel = get_duel_or_404(duel_id, db)
+    if duel.creator_id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot join your own duel")
+    if duel.status != "waiting":
+        raise HTTPException(status_code=400, detail="This duel is no longer accepting requests")
+    if duel.guest_id:
+        raise HTTPException(status_code=400, detail="This duel already has an opponent")
+
+    current_stats = get_user_stats_or_404(current_user.id, db)
+    check_active_match_existence(current_user.id, db)
+    if current_stats.balance < duel.guest_share:
+        raise HTTPException(status_code=400, detail="Insufficient margin balance")
+    if not db.query(DuelRequest).filter(
+        DuelRequest.duel_id == duel.id, DuelRequest.guest_id == current_user.id, DuelRequest.status == "pending"
+    ).first():
+        db.add(DuelRequest(duel_id=duel.id, guest_id=current_user.id))
+        db.commit()
+    return {"status": "success"}
+
+
+@app.get("/api/v1/duels/{duel_id}/requests", response_model=list[DuelRequestResponse], tags=["Matchmaking"])
+async def list_duel_requests(duel_id: int, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    duel = get_duel_or_404(duel_id, db)
+    if duel.creator_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the duel creator can review requests")
+    requests_list = db.query(DuelRequest).filter(DuelRequest.duel_id == duel.id, DuelRequest.status == "pending").all()
+    payload = []
+    for item in requests_list:
+        guest = db.query(User).filter(User.id == item.guest_id).first()
+        guest_stats = get_user_stats_or_404(item.guest_id, db)
+        payload.append({
+            "request_id": item.id,
+            "guest_id": item.guest_id,
+            "username": guest.username if guest else "Unknown",
+            "avatar": guest.avatar if guest else "",
+            "elo": guest_stats.elo,
+            "rank": get_rank_from_elo(guest_stats.elo),
+        })
+    return payload
+
+
+@app.post("/api/v1/requests/{req_id}/accept", tags=["Matchmaking"])
+async def accept_duel_request(req_id: int, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    req = db.query(DuelRequest).filter(DuelRequest.id == req_id, DuelRequest.status == "pending").first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Duel request not found")
+    duel = get_duel_or_404(req.duel_id, db)
+    if duel.creator_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the duel creator can accept requests")
+    if duel.status != "waiting" or duel.guest_id:
+        raise HTTPException(status_code=400, detail="This duel can no longer accept requests")
+
+    guest_stats = get_user_stats_or_404(req.guest_id, db)
+    if guest_stats.balance < duel.guest_share:
+        raise HTTPException(status_code=400, detail="Opponent balance is no longer sufficient")
+
+    guest_stats.balance = round(guest_stats.balance - duel.guest_share, 2)
+    guest_stats.frozen_balance = round(guest_stats.frozen_balance + duel.guest_share, 2)
+    duel.guest_id = req.guest_id
+    duel.status = "ready"
+    req.status = "accepted"
+
+    db.query(DuelRequest).filter(DuelRequest.duel_id == duel.id, DuelRequest.id != req.id).update(
+        {"status": "declined"}, synchronize_session=False
+    )
+    db.commit()
+    return {"status": "success"}
+
+
+@app.delete("/api/v1/duels/{duel_id}/cancel", tags=["Matchmaking"])
+async def cancel_duel(duel_id: int, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    duel = get_duel_or_404(duel_id, db)
+    if duel.creator_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the duel creator can cancel this duel")
+    if duel.status != "waiting":
+        raise HTTPException(status_code=400, detail="Only waiting duels can be cancelled")
+
+    creator_stats = get_user_stats_or_404(duel.creator_id, db)
+    creator_stats.balance = round(creator_stats.balance + duel.creator_share, 2)
+    creator_stats.frozen_balance = round(max(0.0, creator_stats.frozen_balance - duel.creator_share), 2)
+    db.query(DuelRequest).filter(DuelRequest.duel_id == duel.id, DuelRequest.status == "pending").update(
+        {"status": "declined"}, synchronize_session=False
+    )
+    db.delete(duel)
+    db.commit()
+    return {"status": "success"}
+
+
+@app.post("/api/v1/duels/{duel_id}/confirm", tags=["Matchmaking"])
+async def confirm_duel_payout(duel_id: int, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    duel = get_duel_or_404(duel_id, db)
+    if current_user.id not in {duel.creator_id, duel.guest_id}:
+        raise HTTPException(status_code=403, detail="Only match participants can confirm a payout")
+    if duel.status not in {"processing", "ready", "playing"}:
+        raise HTTPException(status_code=400, detail="This duel cannot be confirmed right now")
+
+    creator_stats = get_user_stats_or_404(duel.creator_id, db)
+    guest_stats = get_user_stats_or_404(duel.guest_id, db) if duel.guest_id else None
+    winner_id = duel.winner_id or duel.creator_id
+    winner_stats = creator_stats if winner_id == duel.creator_id else guest_stats
+    loser_stats = guest_stats if winner_id == duel.creator_id else creator_stats
+    commission_percent = get_current_commission(db)
+    payout_amount = round(duel.total_bank * (1 - commission_percent / 100), 2)
+
+    creator_stats.frozen_balance = round(max(0.0, creator_stats.frozen_balance - duel.creator_share), 2)
+    if guest_stats:
+        guest_stats.frozen_balance = round(max(0.0, guest_stats.frozen_balance - duel.guest_share), 2)
+    if winner_stats:
+        winner_stats.balance = round(winner_stats.balance + payout_amount, 2)
+        winner_stats.wins += 1
+        winner_stats.elo += 20
+    if loser_stats:
+        loser_stats.elo = max(700, loser_stats.elo - 20)
+    creator_stats.duels += 1
+    if guest_stats:
+        guest_stats.duels += 1
+    duel.status = "completed"
+    duel.ended_at = datetime.utcnow()
+    db.commit()
+    return {"status": "success"}
+
+
+@app.post("/api/v1/duels/{duel_id}/dispute", tags=["Matchmaking"])
+async def dispute_duel(duel_id: int, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    duel = get_duel_or_404(duel_id, db)
+    if current_user.id not in {duel.creator_id, duel.guest_id}:
+        raise HTTPException(status_code=403, detail="Only match participants can dispute this duel")
+    if duel.status not in {"ready", "playing", "processing"}:
+        raise HTTPException(status_code=400, detail="This duel cannot be disputed right now")
+    duel.status = "disputed"
+    db.commit()
+    return {"status": "success"}
 
 
 # ==================== GATES AND PAYMENTS SYSTEM ====================
 
-@app.get("/api/v1/payments/methods", tags=["Payments"])
+@app.get("/api/v1/payments/methods", response_model=list[PaymentMethodResponse], tags=["Payments"])
 async def get_payment_methods(type: str, db: Session = Depends(get_db)):
     return db.query(PaymentMethod).filter(PaymentMethod.type == type, PaymentMethod.is_active == True).all()
 
@@ -369,13 +585,13 @@ async def cancel_pending_deposit(current_user: User = Depends(require_auth), db:
     return {"status": "success", "message": "Invoice cancelled successfully."}
 
 
-@app.get("/api/v1/payments/history", tags=["Payments"])
+@app.get("/api/v1/payments/history", response_model=list[PaymentHistoryEntry], tags=["Payments"])
 async def get_payment_history(current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
     history = db.query(TransactionHistory).filter(TransactionHistory.user_id == current_user.id).order_by(
         TransactionHistory.created_at.desc()).all()
     return [{
         "id": tx.id, "amount": tx.amount, "currency": tx.currency, "type": tx.type, "status": tx.status,
-        "date": tx.created_at.strftime("%Y-%m-%d %H:%M")
+        "date": tx.created_at.strftime("%Y-%m-%d %H:%M"), "address": tx.address
     } for tx in history]
 
 
@@ -395,230 +611,116 @@ async def crypto_pay_webhook(request: Request, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 
-# ==================== LEGAL COMPLIANCE STATIC GATES ====================
+# ==================== CONTENT, PREMIUM AND ADMIN TOOLS ====================
 
-# ==================== LEGAL COMPLIANCE STATIC GATES ====================
-
-@app.get("/terms", response_class=HTMLResponse, tags=["Legal"])
-async def render_terms():
-    return """
-    <html>
-    <head>
-        <title>Terms of Service | LikeGod.net</title>
-        <style>
-            body { font-family: 'Segoe UI', sans-serif; background: #121214; color: #fff; padding: 40px; line-height: 1.6; }
-            .box { max-width: 900px; margin: 0 auto; background: #1a1a1e; padding: 40px; border-radius: 12px; border: 1px solid #2d2d34; box-shadow: 0 4px 20px rgba(0,0,0,0.5); position: relative; }
-            h1 { color: #4CAF50; font-size: 24px; text-align: center; text-transform: uppercase; margin-bottom: 5px; }
-            .subtitle { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 30px; }
-            .warning-box { background: #221515; border: 1px solid #ef4444; padding: 15px; border-radius: 6px; color: #f43f5e; font-size: 13px; margin-bottom: 30px; }
-            h2 { color: #4CAF50; font-size: 18px; border-bottom: 1px solid #2d2d34; padding-bottom: 8px; margin-top: 30px; }
-            ul { padding-left: 20px; }
-            li { margin-bottom: 10px; }
-            .strong-term { color: #60a5fa; }
-            .back-btn { background: #2d2d34; color: #fff; border: 1px solid #444; padding: 10px 20px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold; margin-top: 20px; transition: 0.2s; }
-            .back-btn:hover { background: #4CAF50; border-color: #4CAF50; }
-
-            /* Стили для кнопки переключения языков */
-            .lang-switcher {
-                position: absolute;
-                top: 20px;
-                right: 20px;
-                background: #2d2d34;
-                border: 1px solid #444;
-                color: #fff;
-                padding: 6px 14px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: bold;
-                font-size: 13px;
-                transition: 0.2s;
-            }
-            .lang-switcher:hover { background: #4CAF50; border-color: #4CAF50; }
-
-            .lang-section { display: none; }
-            .active-lang { display: block; }
-        </style>
-    </head>
-    <body>
-        <div class="box">
-            <!-- Кнопка переключения -->
-            <button class="lang-switcher" id="langBtn" onclick="toggleLanguage()">Перейти на Русский</button>
-
-            <!-- ========================================== ENGLISH VERSION ========================================== -->
-            <div id="lang-en" class="lang-section active-lang">
-                <h1>Public Offer & Terms of Service</h1>
-                <div class="subtitle">Esports Competition Management Infrastructure «LikeGod.net»</div>
-
-                <div class="warning-box">
-                    <strong>USER NOTICE:</strong> This document is an official legal proposal (public offer). Registering an Account, utilizing Platform infrastructure, depositing funds, or participating in matches implies your absolute, unconditional agreement to all clauses listed below. If you do not agree with any statement, you must immediately terminate usage and leave the Site.
-                </div>
-
-                <h2>1. TERMS AND DEFINITIONS</h2>
-                <ul>
-                    <li><strong class="strong-term">Operator (Organizer)</strong> — Individual Entrepreneur Moskalenko A. A., managing the Platform, providing server configurations for esports matchmaking, and serving as a technical escrow and distribution agent for the Prize Pool.</li>
-                    <li><strong class="strong-term">User (Player)</strong> — An individual aged 14 or older who completed registration. Minors between 14-18 access the services with explicit consent of their legal guardians.</li>
-                    <li><strong class="strong-term">Platform (Site)</strong> — The system located at «LikeGod.net», facilitating software-driven tournament operations.</li>
-                    <li><strong class="strong-term">Competition (Duel / Match)</strong> — A match inside Counter-Strike 2 (CS2) evaluated purely on individual skill (skill-based performance). This event is legally defined under Art. 1055 of the Civil Code of the Russian Federation (Public Promise of a Reward) and strictly does not constitute gambling, betting, or lottery.</li>
-                    <li><strong class="strong-term">Lobby</strong> — A dynamic entry created by a User specifying entry parameters, rank constraints, and the Participation Entry Fee.</li>
-                    <li><strong class="strong-term">Participation Entry Fee</strong> — Liquid funds allocated and held on the User Account balance to confirm intent and form the absolute Prize Pool for a specific match.</li>
-                    <li><strong class="strong-term">Prize Pool (Reward)</strong> — Aggregated Entry Fees for a specific Match, due for distribution to the Winner minus the Platform Service Fee.</li>
-                    <li><strong class="strong-term">User Account (Balance)</strong> — An internal database accounting ledger reflecting advance deposits and authorized prize distribution credits.</li>
-                    <li><strong class="strong-term">Service Fee</strong> — Infrastructure allocation compensation retained by the Operator at the time of Prize Pool distribution.</li>
-                </ul>
-
-                <h2>2. SUBJECT OF THE AGREEMENT</h2>
-                <p>2.1. The Operator grants access to software utilities on «LikeGod.net» for setting up skill-based Counter-Strike 2 competitive duels, while the User agrees to follow code-enforced rules and cover Service Fees accordingly.</p>
-                <p>2.2. The Operator guarantees technical recording of game engine output data, internal balance tracking, fee deduction, and match dispute arbitration services.</p>
-                <p>2.3. The User explicitly acknowledges that all match resolutions depend fully on personal mechanical skills. Random chance components are entirely excluded; the platform operates no gambling variants.</p>
-
-                <h2>3. ACCEPTANCE AND ACCOUNT VALIDATION</h2>
-                <p>3.1. Valid signature and acceptance of this contract (pursuant to Art. 438 of the CC RF) occurs automatically when a user creates an account, initializes an incoming deposit invoice, or enters an active matchmaking lobby.</p>
-                <p>3.2. Users below 18 warrant under Art. 431.2 of the CC RF that their deployment of liquid tokens originates from personal stipends or funds legally transferred by guardians for unconstrained use.</p>
-
-                <h2>4. COMPETITION LOGICS AND PRIZE MECHANICS</h2>
-                <p>4.1. A User may generate a Lobby entry by allocating a corresponding fee parameter. A second challenger binds the transaction by matching the entry settings.</p>
-                <p>4.2. Upon mutual confirmation, matching stakes are locked from current account limits to construct the specific operational Prize Pool.</p>
-                <p>4.3. Following the server match completion string parse, the system routes the Reward aggregate to the winning user, deducting the set Operator Service Fee.</p>
-                <p>4.4. Accounting Architecture: Inbound accounting events are classified as advanced deposits. Revenue is declared solely based on the finalized Service Fees collected, while standard stakes act as transit asset pools.</p>
-
-                <h2>5. FINANCES, OUTBOUND WITHDRAWALS, AND TAXATION</h2>
-                <p>5.1. Operations are completed through external gateway providers. The Operator disclaims liability for gateway processing latencies or underlying channel fees.</p>
-                <p>5.2. Return Protocols: Users maintain the right to initiate outbound settlements for unallocated, clear balance parameters back to their native initial source, net of confirmed processing overheads.</p>
-                <p>5.3. Settled match transactions allocated based on server game logging logs are irreversible and cannot be refunded, unless a formal Dispute Appeal is approved.</p>
-                <p>5.4. Taxation: Under Art. 224 and 228 of the Russian Tax Code, the recipient of a competitive reward independently declares and executes personal income tax (NDFL) filings. The platform is not a withholding tax agent.</p>
-
-                <h2>6. DISPUTE AND ANTI-CHEAT ARBITRATION</h2>
-                <p>6.1. If a User suspects client anomalies or malicious utility usage by an opponent, a Dispute Appeal must be logged inside 48 hours of match resolution.</p>
-                <p>6.2. internal verification specialists review log files and game recordings. The Operator reserves absolute authority to balance states following adjudication; findings are terminal.</p>
-
-                <h2>7. CODES OF CONDUCT AND INFRASTRUCTURE SAFETY</h2>
-                <p>7.1. Malicious automation, reverse engineering, exploit code usage, cheat frameworks, match-fixing, or structural transaction manipulation violate basic service access rights.</p>
-                <p>7.2. Code infractions authorize the Operator to terminate profile access permissions. Any ill-gotten credits are written off. Remaining clean initial non-allocated capital deposits are liquidated back via explicit offline verification.</p>
-
-                <h2>8. DATA MANAGEMENT PRIVACY</h2>
-                <p>8.1. Acceptance grants explicit processing permissions under Federal Law № 152-FZ «On Personal Data» concerning server logs, routing tokens, dynamic IP configurations, and payment keys.</p>
-
-                <h2>9. LIMITATION OF LIABILITY</h2>
-                <p>9.1. Systems deploy on an "as is" baseline. The platform disclaims performance faults induced by Valve Corporation API drops, Steam account authentication limits, or general network congestion.</p>
-                <p>9.2. Contentious issues require a 15-day amicable negotiation process. Unresolved items move to the court at the Operator's registration jurisdiction under standard Russian statutory law.</p>
-
-                <h2>10. MERCHANT IDENTIFICATION DETAILS</h2>
-                <p>
-                    <strong>Merchant entity:</strong> Individual Entrepreneur Moskalenko A. A.<br>
-                    <strong>Tax Registry ID (INN):</strong> 972904931221<br>
-                    <strong>Support Telegram:</strong> <a href="https://t.me/likeagod_support" style="color: #4CAF50; text-decoration: none;">@likeagod_support</a><br>
-                    <strong>Banking Protocols:</strong> Available strictly upon verified official request
-                </p>
-            </div>
-
-            <!-- ========================================== RUSSIAN VERSION ========================================== -->
-            <div id="lang-ru" class="lang-section">
-                <h1>Публичная Оферта</h1>
-                <div class="subtitle">интернет-платформы «LikeGod.net» по организации киберспортивных соревнований</div>
-
-                <div class="warning-box">
-                    <strong>ВНИМАНИЕ ПОЛЬЗОВАТЕЛЯ:</strong> Настоящий документ является официальным юридическим предложением (публичной офертой) индивидуального предпринимателя. Регистрация Личного кабинета, использование возможностей Платформы, внесение денежных средств или участие в киберспортивных соревнованиях означают ваше полное и безоговорочное согласие со всеми условиями настоящего Договора (Акцепт оферты). Если вы не согласны с каким-либо пунктом, вам надлежит немедленно покинуть Сайт.
-                </div>
-
-                <h2>1. ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ</h2>
-                <ul>
-                    <li><strong class="strong-term">Исполнитель (Организатор)</strong> — Индивидуальный предприниматель Москаленко А. А., осуществляющий администрирование Платформы, обеспечение технической возможности проведения киберспортивных соревнований, а также выступающий в качестве технологического и платежного агента по распределению Призового фонда.</li>
-                    <li><strong class="strong-term">Пользователь (Игрок)</strong> — физическое лицо, достигшее возраста 14 (четырнадцати) лет, прошедшее регистрацию на Платформе. Лица в возрасте от 14 до 18 лет осуществляют акцепт настоящей оферты с согласия своих законных представителей.</li>
-                    <li><strong class="strong-term">Платформа (Сайт)</strong> — веб-сайт в сети Интернет под названием «LikeGod.net», представляющий собой программно-аппаратный комплекс для организации киберспортивных соревнований.</li>
-                    <li><strong class="strong-term">Соревнование (Дуэль / Матч)</strong> — соревновательное мероприятие по дисциплине Counter-Strike 2 (CS2), проводимое между Пользователями на Платформе на условиях демонстрации персональных игровых навыков (skill-based). Данное мероприятие регламентируется ст. 1055 ГК РФ (Публичное обещание награды), не является азартной игрой, пари или лотереей.</li>
-                    <li><strong class="strong-term">Лобби</strong> — виртуальная комната матча, создаваемая Пользователем, в которой определяются параметры будущего Соревнования, включая требования к рангу и Обеспечительный взнос.</li>
-                    <li><strong class="strong-term">Обеспечительный взнос (Взнос за участие)</strong> — сумма денежных средств, резервируемая на Учетном счете Пользователя в момент подтверждения участие в Соревновании, формирующая Призовой фонд.</li>
-                    <li><strong class="strong-term">Призовой фонд (Награда)</strong> — сумма Обеспечительных взносов участников конкретного Соревнования, подлежащая выплате Победителю матча за вычетом Сервисного сбора Платформы.</li>
-                    <li><strong class="strong-term">Учетный счет (Баланс)</strong> — виртуальный аналитический регистр внутри Платформы, отображающий объем авансовых платежей Пользователя, внесенных им для оплаты услуг Платформы.</li>
-                    <li><strong class="strong-term">Сервисный сбор</strong> — вознаграждение Исполнителя за предоставление технической инфраструктуры Платформы, удерживаемое в момент распределения Призового фонда.</li>
-                </ul>
-
-                <h2>2. ПРЕДМЕТ ДОГОВОРА</h2>
-                <p>2.1. Исполнитель предоставляет Пользователю доступ к программным возможностям Платформы «LikeGod.net» для организации и участия в киберспортивных соревнованиях (Дуэлях) по игре Counter-Strike 2, а Пользователь обязуется соблюдать правила Платформы и выплачивать Сервисный сбор в порядке, установленном настоящей Офертой.</p>
-                <p>2.2. Исполнитель осуществляет техническую фиксацию результатов матчей, ведение Учетного счета Пользователей, удержание Сервисного сбора, а также выполнение функций арбитража в случае возникновения споров по результатам соревнований.</p>
-                <p>2.3. Пользователь признает и подтверждает, что участие в соревнованиях на Платформе основано исключительно на демонстрации персональных игровых навыков. Платформа не проводит азартные игры (гэмблинг), лотереи, ставки на спорт или иные мероприятия, основанные на случайности.</p>
-
-                <h2>3. ПОРЯДОК РЕГИСТРАЦИИ И АКЦЕПТ ОФЕРТЫ</h2>
-                <p>3.1. Полным и безоговорочным принятием (Акцептом) условий настоящей Публичной оферты в соответствии со статьей 438 Гражданского кодекса РФ признается совершение Пользователем любого из следующих действий: а) регистрация учетной записи на Сайте; б) пополнение Учетного счета через Сервис приема платежей; в) создание Лобби или подтверждение вступления в Лобби другого Пользователя.</p>
-                <p>3.2. Проходя регистрацию, Пользователь в возрасте от 14 до 18 лет гарантирует и подтверждает, что действует с согласия своих законных представителей (родителей, опекунов), а денежные средства, используемые на Платформе, являются его собственным заработком, стипендией или предоставлены законными представителями для свободного распоряжения в соответствии с п. 2 ст. 26 ГК РФ (Заверение об обстоятельствах по ст. 431.2 ГК РФ).</p>
-
-                <h2>4. МЕХАНИКА СОРЕВНОВАНИЙ И ФОРМИРОВАНИЕ ПРИЗОВОГО ФОНДА</h2>
-                <p>4.1. Один из Пользователей имеет право создать Лобби, самостоятельно установив Взнос за участие на основании доступных лимитов своего Учетного счета. Второй Пользователь принимает вызов, вступая в Лобби.</p>
-                <p>4.2. В момент подтверждения готовности обоих Игроков, сумма Взноса за участие блокируется на Учетном счете каждого из участников. Сумма данных взносов формирует Призовой фонд текущего Соревнования.</p>
-                <p>4.3. После завершения Матча в системе CS2 и автоматической или ручной фиксации результата Платформой, Победителю зачисляется Награда (Призовой фонд) за вычетом Сервисного сбора Платформы (комиссии Организатора).</p>
-                <p>4.4. Юридическая схема расчетов: Денежные средства, вносимые на баланс, признаются авансовым платежом. Исполнитель признает своим доходом (выручкой) исключительно Сервисный сбор. Остальные средства признаются транзитными агентскими суммами, удерживаемыми в целях выплаты Победителю.</p>
-
-                <h2>5. ФИНАНСОВЫЕ УСЛОВИЯ, ПОПОЛНЕНИЕ И ВЫВОД СРЕДСТВ</h2>
-                <p>5.1. Пополнение Баланса и вывод денежных средств осуществляются через интегрированные сторонние платежные сервисы. Исполнитель не несет ответственности за задержки, сбои или комиссии, установленные указанными платежными сервисами.</p>
-                <p>5.2. Правила возврата денежных средств: Пользователь имеет право в любой момент запросить возврат неизрасходованных (ранее внесенных лично и не заблокированных в активных матчах) денежных средств на те же реквизиты, с которых осуществлялось пополнение, за вычетом документально подтвержденных расходов на транзакции.</p>
-                <p>5.3. Возврат денежных средств, которые были правомерно списаны в качестве Обеспечительного взноса по результатам завершенного матча в пользу Победителя, не производится, за исключением случаев удовлетворения Апелляции.</p>
-                <p>5.4. Налогообложение: Согласно ст. 224 и ст. 228 Налогового кодекса РФ, Пользователь (получатель дохода в виде приза) самостоятельно исчисляет, декларирует и уплачивает налог на доходы физических лиц (НДФЛ) со своих выигрышей. Исполнитель не выступает в качестве налогового агента.</p>
-
-                <h2>6. СИСТЕМА АПЕЛЛЯЦИЙ И РАССМОТРЕНИЕ СПОРОВ</h2>
-                <p>6.1. В случае несогласия с техническим результатом Матча, зафиксированным Платформой, или при обнаружении фактов нечестной игры со стороны соперника, Пользователь имеет право подать официальную Апелляцию в течение 2 (двух) календарных дней (48 часов) с момента окончания Матча.</p>
-                <p>6.2. Рассмотрение Апелляции осуществляется специализированной внутренней службой модерации Исполнителя. По результатам рассмотрения Исполнитель имеет право изменить статус матча и осуществить корректировку Балансов участников. Решение службы модерации является окончательным.</p>
-
-                <h2>7. ПРАВИЛА ПОВЕДЕНИЯ И ЗАЩИТА ОТ ЗЛОУПОТРЕБЛЕНИЙ</h2>
-                <p>7.1. Пользователю категорически запрещается использовать стороннее программное обеспечение (читы, макросы), применять мошеннические схемы (договорные матчи), использовать Платформу в целях легализации доходов, полученных преступным путем.</p>
-                <p>7.2. В случае нарушения правил Исполнитель имеет право заблокировать Личный кабинет Пользователя. При этом призовые средства, полученные в результате нарушений, аннулируются. Неиспользованные личные денежные средства, ранее внесенные Пользователем на баланс, подлежат возврату по письменному заявлению за вычетом комиссий платежных систем и расходов Исполнителя.</p>
-
-                <h2>8. ПЕРСОНАЛЬНЫЕ DАННЫЕ</h2>
-                <p>8.1. Акцептуя оферту, Пользователь дает свое полное и добровольное согласие Исполнителю на обработку своих персональных данных (email, никнейм, платежные реквизиты, логи, IP-адрес) в соответствии с Федеральным законом № 152-ФЗ «О персональных данных» для целей исполнения настоящего Договора.</p>
-
-                <h2>9. ОГРАНИЧЕНИЕ ОТВЕТСТВЕННОСТИ И ПРИМЕНИМОЕ ПРАВО</h2>
-                <p>9.1. Платформа предоставляется по принципу «как есть». Исполнитель не несет ответственности за технические проблемы на стороне Valve (Counter-Strike 2), серверов Steam или провайдеров связи.</p>
-                <p>9.2. Все споры и разногласия разрешаются сторонами путем переговоров (досудебный претензионный порядок 15 дней). В случае недостижения согласия спор передается на рассмотрение в суд по месту нахождения Исполнителя в соответствии с законодательством РФ.</p>
-                <p>9.3. Исполнитель оставляет за собой право изменять условия оферты. Новая редакция вступает в силу через 3 (три) календарных дня после ее публикации на Сайте.</p>
-
-                <h2>10. РЕКВИЗИТЫ ИСПОЛНИТЕЛЯ</h2>
-                <p>
-                    <strong>Исполнитель:</strong> Индивидуальный предприниматель Москаленко А. А.<br>
-                    <strong>ИНН:</strong> 972904931221<br>
-                    <strong>Support Telegram:</strong> <a href="https://t.me/likeagod_support" style="color: #4CAF50; text-decoration: none;">@likeagod_support</a><br>
-                    <strong>Банковские реквизиты:</strong> Предоставляются по запросу
-                </p>
-            </div>
-
-            <div style="text-align: center; margin-top: 40px;">
-                <a href="/main" class="back-btn">← Return to Main</a>
-            </div>
-        </div>
-
-        <script>
-            function toggleLanguage() {
-                const enSection = document.getElementById('lang-en');
-                const ruSection = document.getElementById('lang-ru');
-                const btn = document.getElementById('langBtn');
-
-                if (enSection.classList.contains('active-lang')) {
-                    enSection.classList.remove('active-lang');
-                    ruSection.classList.add('active-lang');
-                    btn.innerText = "Switch to English";
-                } else {
-                    ruSection.classList.remove('active-lang');
-                    enSection.classList.add('active-lang');
-                    btn.innerText = "Перейти на Русский";
-                }
-            }
-        </script>
-    </body>
-    </html>
-    """
+@app.get("/news", response_model=list[NewsResponse], tags=["Public Content Engine"])
+async def list_news(db: Session = Depends(get_db)):
+    return db.query(News).order_by(News.created_at.desc()).all()
 
 
-@app.get("/refund", response_class=HTMLResponse, tags=["Legal"])
-async def render_refund():
-    return """
-    <html><head><title>Refund Policy | LikeGod</title><style>body{font-family:sans-serif; background:#121214; color:#fff; padding:40px; line-height:1.6;} .box{max-width:800px; margin:0 auto; background:#1a1a1e; padding:30px; border-radius:8px;}</style></head>
-    <body><div class="box"><h1>Refund & Cancellation Policy</h1>
-    <h2>1. Service Utilization</h2><p>Digital services are considered fully provided upon delivery. Unused assets can be requested for liquidation payout via user control panel at any time. Canceled matches auto-refund 100% margin asset allocation value.</p>
-    <br><a href="/main" style="color:#4CAF50; text-decoration:none;">← Back to Main</a></div></body></html>
-    """
+@app.post("/news/create", tags=["Admin"])
+async def create_news(data: dict, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    title = str(data.get("title", "")).strip()
+    image_path = str(data.get("image_path", "")).strip()
+    if not title or not image_path:
+        raise HTTPException(status_code=400, detail="Title and image are required")
+
+    news = News(
+        title=title[:120],
+        image_path=image_path,
+        btn_text=str(data.get("btn_text") or "").strip() or None,
+        btn_url=str(data.get("btn_url") or "").strip() or None,
+    )
+    db.add(news)
+    db.commit()
+    db.refresh(news)
+    return {"status": "success", "id": news.id}
+
+
+@app.delete("/news/{news_id}", tags=["Admin"])
+async def delete_news(news_id: int, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    news = db.query(News).filter(News.id == news_id).first()
+    if not news:
+        raise HTTPException(status_code=404, detail="News item not found")
+    db.delete(news)
+    db.commit()
+    return {"status": "success"}
+
+
+@app.get("/api/v1/premium/tariffs", response_model=list[TariffResponse], tags=["Premium"])
+async def get_premium_tariffs(db: Session = Depends(get_db)):
+    return db.query(PremiumTariff).order_by(PremiumTariff.duration_months.asc()).all()
+
+
+@app.post("/api/v1/premium/buy", tags=["Premium"])
+async def buy_premium(data: dict, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    tariff = db.query(PremiumTariff).filter(PremiumTariff.id == int(data.get("tariff_id", 0))).first()
+    if not tariff:
+        raise HTTPException(status_code=404, detail="Premium tariff not found")
+    stats = get_user_stats_or_404(current_user.id, db)
+    if stats.balance < tariff.price:
+        raise HTTPException(status_code=400, detail="Insufficient balance for premium purchase")
+
+    stats.balance = round(stats.balance - tariff.price, 2)
+    current_user.is_premium = True
+    base_date = current_user.premium_until if current_user.premium_until and current_user.premium_until > datetime.utcnow() else datetime.utcnow()
+    current_user.premium_until = base_date + timedelta(days=30 * tariff.duration_months)
+    db.commit()
+    return {"status": "success", "premium_until": current_user.premium_until}
+
+
+@app.post("/api/v1/admin/adjust-balance", tags=["Admin"])
+async def admin_adjust_balance(data: dict, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    user = find_user_by_target(str(data.get("target", "")).strip(), db)
+    stats = get_user_stats_or_404(user.id, db)
+    amount = float(data.get("amount", 0))
+    stats.balance = round(stats.balance + amount, 2)
+    db.commit()
+    return {"status": "success", "message": f"Balance updated for {user.username}"}
+
+
+@app.post("/api/v1/admin/adjust-elo", tags=["Admin"])
+async def admin_adjust_elo(data: dict, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    user = find_user_by_target(str(data.get("target", "")).strip(), db)
+    stats = get_user_stats_or_404(user.id, db)
+    stats.elo = max(700, int(data.get("amount", stats.elo)))
+    db.commit()
+    return {"status": "success", "message": f"ELO updated for {user.username}"}
+
+
+@app.post("/api/v1/admin/tariffs", tags=["Admin"])
+async def admin_upsert_tariff(data: dict, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    duration_months = int(data.get("duration_months", 0))
+    price = float(data.get("price", 0))
+    if duration_months <= 0 or price <= 0:
+        raise HTTPException(status_code=400, detail="Invalid tariff values")
+    tariff = db.query(PremiumTariff).filter(PremiumTariff.duration_months == duration_months).first()
+    if not tariff:
+        tariff = PremiumTariff(duration_months=duration_months, price=price)
+        db.add(tariff)
+    tariff.price = price
+    tariff.discount_text = str(data.get("discount_text") or "").strip() or None
+    db.commit()
+    return {"status": "success"}
+
+
+@app.post("/api/v1/admin/commission", tags=["Admin"])
+async def admin_update_commission(data: dict, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    commission_percent = float(data.get("commission_percent", 10.0))
+    if commission_percent < 0 or commission_percent > 100:
+        raise HTTPException(status_code=400, detail="Commission must be between 0 and 100")
+    settings = db.query(PlatformSettings).first()
+    if not settings:
+        settings = PlatformSettings(commission_percent=commission_percent)
+        db.add(settings)
+    settings.commission_percent = commission_percent
+    db.commit()
+    return {"status": "success", "commission_percent": settings.commission_percent}
 
 
 # ==================== MAIN APPLICATION ENGINE LOAD ====================
 
-@app.get("/api/main", tags=["Public Content Engine"])
+@app.get("/api/main", response_model=MainPayloadResponse, tags=["Public Content Engine"])
 async def get_landing_page_payload(request: Request, db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
     news = db.query(News).order_by(News.created_at.desc()).limit(10).all()
@@ -652,7 +754,7 @@ async def get_landing_page_payload(request: Request, db: Session = Depends(get_d
             "country": current_user.country, "language": current_user.language
         }})
         if st: response["stats"] = {"duels": st.duels, "wins": st.wins, "kills": st.kills, "deaths": st.deaths,
-                                    "elo_val": elo_val, "rank": max(1, min(10, (elo_val - 700) // 100)),
+                                    "elo_val": elo_val, "rank": get_rank_from_elo(elo_val),
                                     "winrate": round((st.wins / st.duels * 100) if st.duels > 0 else 0, 1)}
     return response
 
@@ -759,4 +861,4 @@ async def create_withdrawal(data: dict, current_user: User = Depends(require_aut
 
 import test_front
 
-app.include_router(test_front.router)
+app.router.routes.extend(test_front.router.routes)

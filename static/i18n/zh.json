@@ -1,0 +1,357 @@
+{
+  "common": {
+    "brandSubtitle": "CS2 对局控制中心",
+    "rank": "Rank {rank}",
+    "rankRange": "Ranks {min}–{max}",
+    "nav": {
+      "home": "首页",
+      "duels": "对局",
+      "premium": "高级会员",
+      "profile": "资料",
+      "admin": "管理",
+      "logout": "退出",
+      "loginSteam": "通过 Steam 登录",
+      "balance": "余额",
+      "language": "语言",
+      "menu": "打开导航",
+      "deposit": "充值"
+    },
+    "actions": {
+      "open": "打开",
+      "join": "加入对局",
+      "close": "关闭",
+      "pay": "打开账单",
+      "save": "保存更改",
+      "delete": "删除",
+      "generateInvoice": "生成账单",
+      "requestPayout": "申请提现"
+    },
+    "modal": {
+      "billingEyebrow": "支付",
+      "method": "支付方式",
+      "amount": "金额",
+      "telegram": "Telegram ID 或用户名",
+      "telegramPlaceholder": "123456789 或 @username",
+      "withdrawNotice": "请先打开 @CryptoBot，否则提现可能失败，资金会退回余额。",
+      "depositTitle": "充值余额",
+      "depositText": "选择支付通道和金额以生成付款账单。",
+      "withdrawTitle": "提取资金",
+      "withdrawText": "提现将通过已配置的 CryptoBot payout 方法发送。",
+      "invoiceReady": "账单已生成",
+      "completePayment": "完成支付",
+      "invoiceText": "账单会在新标签页中打开。请在那里完成支付，然后刷新个人资料。"
+    },
+    "errors": {
+      "authRequired": "请先登录。",
+      "invalidAmount": "请输入有效金额。",
+      "genericError": "请求失败，请重试。"
+    },
+    "toasts": {
+      "saved": "更改已保存。",
+      "invoiceCreated": "账单创建成功。"
+    },
+    "states": {
+      "loading": "加载中…",
+      "emptyNews": "暂时没有公告。",
+      "emptyDuels": "没有符合当前筛选条件的对局。",
+      "emptyRequests": "还没有加入申请。",
+      "emptyHistory": "暂无交易记录。",
+      "emptyTariffs": "暂未配置高级会员套餐。"
+    },
+    "labels": {
+      "balance": "余额",
+      "language": "语言",
+      "bank": "奖池",
+      "elo": "ELO",
+      "creatorRank": "创建者段位"
+    }
+  },
+  "statuses": {
+    "waiting": "等待中",
+    "ready": "已就绪",
+    "playing": "进行中",
+    "processing": "处理中",
+    "disputed": "争议中",
+    "completed": "已完成"
+  },
+  "footer": {
+    "description": "面向 CS2 金钱对局的深色界面，带 escrow 逻辑，并可直接用于生产部署。",
+    "entity": "经营者：Individual Entrepreneur Moskalenko A. A. • INN 972904931221",
+    "terms": "服务条款",
+    "privacy": "隐私政策",
+    "refund": "退款政策",
+    "copy": "© 2026 LikeGod.net"
+  },
+  "home": {
+    "meta": {
+      "title": "LikeGod.net | 首页"
+    },
+    "hero": {
+      "eyebrow": "CS2 金钱对局",
+      "title": "创建对局，进入服务器，用枪法拿下整个奖池。",
+      "subtitle": "面向 Steam 玩家、可直接上线的大厅体验：充值、排名房间、以及争议比赛的人工处理流程。",
+      "openDuels": "查看大厅",
+      "deposit": "充值余额",
+      "statusEyebrow": "会话状态",
+      "sessionTitle": "账户概览",
+      "guestTitle": "需要通过 Steam 登录",
+      "guestText": "登录后即可创建房间、充值并管理对局历史。"
+    },
+    "news": {
+      "eyebrow": "平台动态",
+      "title": "最新公告",
+      "subtitle": "这里会显示新闻、premium 活动和仲裁更新。"
+    },
+    "activeDuels": {
+      "eyebrow": "我的比赛",
+      "title": "你的活跃对局"
+    },
+    "create": {
+      "eyebrow": "新房间",
+      "title": "创建对局房间",
+      "subtitle": "设置奖池、地图以及允许的段位范围。",
+      "bank": "总奖池",
+      "map": "地图",
+      "minRank": "最低段位",
+      "maxRank": "最高段位",
+      "submit": "创建对局"
+    },
+    "features": {
+      "eyebrow": "为什么选择 LikeGod",
+      "title": "为强势首发版本打造",
+      "fast": {
+        "label": "房间创建更快",
+        "text": "无需改动当前后端契约，即可在几秒内创建房间。"
+      },
+      "escrow": {
+        "label": "Escrow 流程清晰",
+        "text": "余额冻结、结果确认和争议状态都能直接在前端查看。"
+      },
+      "global": {
+        "label": "多语言界面",
+        "text": "英语、俄语、中文和西班牙语都通过共享 JSON 字典加载。"
+      }
+    }
+  },
+  "duels": {
+    "meta": {
+      "title": "LikeGod.net | 开放对局"
+    },
+    "hero": {
+      "eyebrow": "大厅浏览器",
+      "title": "开放对局大厅",
+      "subtitle": "可按地图、奖池和段位范围筛选房间，然后发送加入申请。"
+    },
+    "filters": {
+      "map": "地图",
+      "bankMin": "最低奖池",
+      "bankMax": "最高奖池",
+      "rank": "偏好段位",
+      "allRanks": "所有段位"
+    },
+    "list": {
+      "title": "可加入房间",
+      "subtitle": "下方每张卡片都保持当前 duel API 合约。"
+    },
+    "sort": {
+      "high": "最高奖池优先",
+      "low": "最低奖池优先"
+    }
+  },
+  "duel": {
+    "meta": {
+      "title": "LikeGod.net | 对局房间"
+    },
+    "hero": {
+      "eyebrow": "比赛房间",
+      "title": "对局房间"
+    },
+    "info": {
+      "bank": "奖池",
+      "map": "地图",
+      "creatorShare": "创建者份额",
+      "guestShare": "挑战者份额"
+    },
+    "actions": {
+      "title": "房间操作",
+      "subtitle": "可执行操作会根据对局状态和你的角色变化。",
+      "join": "发送加入申请",
+      "cancel": "取消对局",
+      "confirm": "确认结果",
+      "dispute": "发起争议",
+      "noActions": "当前没有可用操作。"
+    },
+    "requests": {
+      "title": "加入申请",
+      "subtitle": "房主可直接在这里接受对手。",
+      "accept": "接受挑战者",
+      "hidden": "只有房主在等待状态下可以看到申请列表。"
+    },
+    "guestWaiting": "等待对手",
+    "slotOpen": "空位开放",
+    "invalidId": "页面 URL 中缺少 duel id。",
+    "toasts": {
+      "requestSent": "申请已发送。",
+      "cancelled": "对局已取消，创建者资金已退回。",
+      "accepted": "已接受对手。",
+      "confirmed": "结果已确认。",
+      "disputed": "对局已进入争议状态。"
+    }
+  },
+  "profile": {
+    "meta": {
+      "title": "LikeGod.net | 个人资料"
+    },
+    "hero": {
+      "eyebrow": "公开资料",
+      "emptyBio": "该玩家还没有填写简介。",
+      "standard": "标准账户"
+    },
+    "stats": {
+      "title": "表现概览",
+      "subtitle": "公开对局数据与当前段位指标。",
+      "elo": "ELO",
+      "rank": "段位",
+      "winrate": "胜率",
+      "duels": "对局数",
+      "wins": "胜场",
+      "kills": "击杀",
+      "deaths": "死亡",
+      "kd": "K/D"
+    },
+    "history": {
+      "title": "交易记录",
+      "subtitle": "当前账户的充值、提现和支付目标。",
+      "columns": {
+        "date": "日期",
+        "type": "类型",
+        "amount": "金额",
+        "destination": "目标",
+        "status": "状态"
+      }
+    },
+    "billing": {
+      "title": "余额操作",
+      "subtitle": "使用统一弹窗进行充值和提现。",
+      "deposit": "充值资金",
+      "withdraw": "提取资金",
+      "activeInvoice": "待支付账单",
+      "activeInvoiceText": "你已有一张待支付账单：{amount}。",
+      "cancelInvoice": "取消账单",
+      "invoiceCancelled": "账单已取消。"
+    },
+    "settings": {
+      "title": "资料设置",
+      "subtitle": "更新界面语言、主题和 bio。",
+      "language": "界面语言",
+      "theme": "主题",
+      "dark": "深色",
+      "light": "浅色",
+      "bio": "Bio",
+      "bioPlaceholder": "写一句简短状态或介绍…"
+    }
+  },
+  "admin": {
+    "meta": {
+      "title": "LikeGod.net | 管理"
+    },
+    "hero": {
+      "eyebrow": "运营",
+      "title": "管理员控制台",
+      "subtitle": "管理内容、调整余额、配置套餐和平台佣金。"
+    },
+    "users": {
+      "title": "用户调整",
+      "subtitle": "输入 username 或 SteamID 以修改余额或 ELO。",
+      "target": "目标玩家",
+      "targetPlaceholder": "username 或 SteamID",
+      "amount": "数值",
+      "addBalance": "增加余额",
+      "setElo": "设置 ELO"
+    },
+    "news": {
+      "title": "公告编辑",
+      "subtitle": "首页新闻卡片在这里创建。",
+      "listTitle": "当前公告",
+      "form": {
+        "title": "标题",
+        "image": "横幅图片 URL",
+        "buttonText": "按钮文本",
+        "buttonUrl": "按钮 URL",
+        "submit": "发布公告"
+      }
+    },
+    "tariffs": {
+      "title": "Premium 套餐",
+      "subtitle": "无需变更后端协议即可维护 premium 商店。",
+      "duration": "时长（月）",
+      "price": "价格",
+      "discount": "折扣标签",
+      "submit": "保存套餐"
+    },
+    "commission": {
+      "title": "平台佣金",
+      "subtitle": "该值用于对局结算时的奖金分配。",
+      "label": "佣金百分比",
+      "submit": "保存佣金"
+    },
+    "errors": {
+      "forbidden": "需要管理员权限。"
+    },
+    "toasts": {
+      "newsSaved": "公告已保存。",
+      "newsDeleted": "公告已删除。",
+      "tariffSaved": "套餐已保存。",
+      "commissionSaved": "佣金已更新为"
+    }
+  },
+  "premium": {
+    "meta": {
+      "title": "LikeGod.net | Premium"
+    },
+    "hero": {
+      "eyebrow": "高级会员",
+      "title": "升级你的对局资料页",
+      "subtitle": "突出你的账号，让 premium 状态清晰可见，并为后续特权预留商店入口。"
+    },
+    "status": {
+      "title": "当前状态",
+      "guest": "登录后可查看你的 premium 状态。",
+      "active": "Premium 有效期至",
+      "inactive": "当前账号尚未启用 premium。"
+    },
+    "cards": {
+      "title": "套餐商店",
+      "subtitle": "下方所有卡片都读取自现有 premium_tariffs 表。",
+      "months": "{months} 个月计划",
+      "cardText": "Premium 徽章、资料高亮以及未来特权入口。",
+      "buy": "购买 premium"
+    },
+    "toasts": {
+      "purchased": "Premium 已激活。"
+    }
+  },
+  "legal": {
+    "common": {
+      "eyebrow": "法律信息"
+    },
+    "terms": {
+      "metaTitle": "LikeGod.net | 条款",
+      "title": "服务条款",
+      "updated": "已针对生产部署更新",
+      "body": "<div class='state-card' style='text-align:left;margin-bottom:18px;'><strong>重要提示：</strong>注册、充值或加入对局即表示你已完整接受以下规则。</div>\n<h2>1. 平台性质</h2>\n<p>LikeGod.net 为 Counter-Strike 2 技术型 1v1 对局提供基础设施服务。本服务不是赌场、体育博彩或彩票产品。</p>\n<h2>2. 账户与访问</h2>\n<p>平台通过 Steam OpenID 登录。用户需自行负责 Steam 账户、公开资料以及会话中的所有操作安全。</p>\n<h2>3. 对局机制</h2>\n<p>创建房间时，创建者对应份额会先被冻结；接受对手后，对手份额也会被冻结。奖池将按照记录到的比赛结果和当前平台佣金进行结算。</p>\n<h2>4. 公平竞技</h2>\n<p>作弊、小号炸鱼、假赛、共享账号、自动化脚本或任何试图操控结果的行为，都可能导致余额回滚、对局取消或永久封禁。</p>\n<h2>5. 充值与提现</h2>\n<p>充值和提现通过已接入的支付服务商处理。手续费、KYC、可用性和处理延迟取决于所选支付通道。</p>\n<h2>6. 争议处理</h2>\n<p>如果对局结果存在争议，参与者可以将比赛置为 disputed 状态。平台有权在最终裁定前审核日志、demo 和内部记录。</p>\n<h2>7. 责任限制</h2>\n<p>平台按“现状”提供服务。对于 Valve、Steam、网络、主机或第三方支付通道导致的中断，我们不承担责任。</p>\n<h2>8. 联系方式</h2>\n<p>支持：<a href='https://t.me/likeagod_support' target='_blank' rel='noreferrer'>@likeagod_support</a><br>经营者：个体 предприниматель Moskalenko A. A. • INN 972904931221</p>"
+    },
+    "privacy": {
+      "metaTitle": "LikeGod.net | 隐私",
+      "title": "隐私政策",
+      "updated": "数据处理说明",
+      "body": "<h2>1. 我们收集的数据</h2>\n<p>我们会保存平台运行所需的公开 Steam 数据：SteamID、头像、昵称、国家、所选语言、游戏统计以及支付历史记录。</p>\n<h2>2. 处理目的</h2>\n<p>这些数据用于身份验证、创建对局、余额记账、反欺诈、争议复核、客服支持以及界面语言个性化。</p>\n<h2>3. 支付信息</h2>\n<p>支付指令通过已接入网关处理。平台仅保存对账所需的标识符、地址、金额和状态。</p>\n<h2>4. 安全性</h2>\n<p>我们采用适合小型生产服务的技术和组织措施，包括会话隔离、受限管理员访问以及平台侧日志记录。</p>\n<h2>5. 删除与请求</h2>\n<p>如需删除账户或提交合规请求，请联系 <a href='https://t.me/likeagod_support' target='_blank' rel='noreferrer'>@likeagod_support</a>。</p>"
+    },
+    "refund": {
+      "metaTitle": "LikeGod.net | 退款",
+      "title": "退款与提现政策",
+      "updated": "支付与取消规则",
+      "body": "<div class='state-card' style='text-align:left;margin-bottom:18px;'><strong>重要提示：</strong>已完成的数字服务以及已结算的对局结果通常不支持退款。</div>\n<h2>1. 充值</h2>\n<p>充值成功后，资金将进入平台余额。支付通道产生的手续费由所选服务商收取，平台不予返还。</p>\n<h2>2. 提现</h2>\n<p>用户可以在个人资料页申请提取可用余额。不同支付方式会有最低金额和额外校验要求。</p>\n<h2>3. 房间取消</h2>\n<p>如果等待中的对局在接受对手前被取消，创建者被冻结的份额会全额退回余额。</p>\n<h2>4. Premium 与数字服务</h2>\n<p>Premium 权益一旦激活，已实际交付的数字服务通常不支持退款。</p>\n<h2>5. 支持</h2>\n<p>如遇支付异常，请联系 <a href='https://t.me/likeagod_support' target='_blank' rel='noreferrer'>@likeagod_support</a> 并提供交易详情。</p>"
+    }
+  }
+}
