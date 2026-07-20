@@ -1,35 +1,21 @@
 window.LikeGodApp = (() => {
-  const storageKey = 'likeagod.language';
-  const supportedLanguages = ['en', 'ru', 'zh', 'es'];
-  const languageOptions = [
-    { code: 'en', label: 'EN', flag: '🇺🇸' },
-    { code: 'ru', label: 'RU', flag: '🇷🇺' },
-    { code: 'zh', label: 'ZH', flag: '🇨🇳' },
-    { code: 'es', label: 'ES', flag: '🇪🇸' }
-  ];
-
   const state = {
     landingData: null,
     user: null,
     translations: {},
     lang: 'en',
-    paymentContext: { type: 'deposit', onSuccess: null }
+    theme: 0,
+    paymentContext: { type: 'deposit', onSuccess: null },
+    paymentMethods: [],
+    selectedPaymentMethodId: null
   };
 
-  function getNestedValue(source, path) {
-    return path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), source);
-  }
-
-  function interpolate(template, params = {}) {
-    return String(template).replace(/\{(\w+)\}/g, (_, key) => params[key] ?? '');
-  }
+  const i18n = window.LikeGodI18n;
+  const themeTools = window.LikeGodTheme;
+  const effectsTools = window.LikeGodEffects;
 
   function t(key, params = {}) {
-    const value = getNestedValue(state.translations, key);
-    if (typeof value === 'string') {
-      return interpolate(value, params);
-    }
-    return key;
+    return i18n.t(state.translations, key, params);
   }
 
   function formatMoney(value, currencySymbol = '$') {
@@ -55,7 +41,7 @@ window.LikeGodApp = (() => {
     const payload = contentType.includes('application/json') ? await response.json() : await response.text();
 
     if (!response.ok) {
-      const message = payload?.detail || payload?.message || payload || t('common.genericError');
+      const message = payload?.detail || payload?.message || payload || t('common.errors.genericError');
       throw new Error(message);
     }
 
@@ -72,55 +58,18 @@ window.LikeGodApp = (() => {
     }
   }
 
-  function detectLanguage() {
-    const stored = localStorage.getItem(storageKey);
-    if (stored && supportedLanguages.includes(stored)) {
-      return stored;
-    }
-
-    if (state.user?.language && supportedLanguages.includes(state.user.language)) {
-      return state.user.language;
-    }
-
-    const browserLang = (navigator.language || 'en').slice(0, 2).toLowerCase();
-    return supportedLanguages.includes(browserLang) ? browserLang : 'en';
-  }
-
   async function loadTranslations(lang) {
-    const selected = supportedLanguages.includes(lang) ? lang : 'en';
-    const response = await fetch(`/static/i18n/${selected}.json`, { credentials: 'same-origin' });
-    if (!response.ok) {
-      if (selected !== 'en') {
-        return loadTranslations('en');
-      }
-      throw new Error('Unable to load translations');
-    }
-    state.translations = await response.json();
-    state.lang = selected;
-    document.documentElement.lang = selected;
-    localStorage.setItem(storageKey, selected);
+    const loaded = await i18n.loadTranslations(lang);
+    state.translations = loaded.translations;
+    state.lang = loaded.lang;
   }
 
   function applyTranslations(root = document) {
-    root.querySelectorAll('[data-i18n]').forEach((element) => {
-      element.textContent = t(element.dataset.i18n);
-    });
+    i18n.applyTranslations(state.translations, root);
+  }
 
-    root.querySelectorAll('[data-i18n-html]').forEach((element) => {
-      element.innerHTML = t(element.dataset.i18nHtml);
-    });
-
-    root.querySelectorAll('[data-i18n-placeholder]').forEach((element) => {
-      element.placeholder = t(element.dataset.i18nPlaceholder);
-    });
-
-    root.querySelectorAll('[data-i18n-title]').forEach((element) => {
-      element.title = t(element.dataset.i18nTitle);
-    });
-
-    root.querySelectorAll('[data-i18n-value]').forEach((element) => {
-      element.value = t(element.dataset.i18nValue);
-    });
+  function languageOption(lang) {
+    return i18n.languageOptions.find((option) => option.code === lang) || i18n.languageOptions[0];
   }
 
   function getSteamButtonLabel() {
@@ -133,9 +82,13 @@ window.LikeGodApp = (() => {
 
     const currentPath = window.location.pathname;
     const activeClass = (path) => (currentPath === path ? 'is-active' : '');
-    const languageOptionsHtml = languageOptions
-      .map((option) => `<option value="${option.code}" ${state.lang === option.code ? 'selected' : ''}>${option.flag} ${option.label}</option>`)
-      .join('');
+    const currentLanguage = languageOption(state.lang);
+    const languageItems = i18n.languageOptions.map((option) => `
+      <button type="button" class="language-option ${option.code === state.lang ? 'is-active' : ''}" data-language-option="${option.code}">
+        <span>${option.flag}</span>
+        <span>${option.name}</span>
+      </button>
+    `).join('');
 
     const authActions = state.user
       ? `
@@ -162,7 +115,17 @@ window.LikeGodApp = (() => {
             <a class="nav-link ${activeClass('/premium')}" href="/premium">${t('common.nav.premium')}</a>
           </div>
           <div class="nav-actions">
-            <select class="lang-select" id="lang-select" aria-label="${t('common.nav.language')}">${languageOptionsHtml}</select>
+            <button type="button" class="theme-toggle ${state.theme === 1 ? 'is-light' : ''}" id="theme-toggle" aria-label="${t('common.nav.theme')}">
+              <span class="theme-toggle__icons"><span>🌙</span><span>☀️</span></span>
+              <span class="theme-toggle__knob"></span>
+            </button>
+            <div class="language-switch" id="language-switch">
+              <button type="button" class="language-switch__trigger" id="language-trigger" aria-label="${t('common.nav.language')}">
+                <span>${currentLanguage.flag}</span>
+                <span>${currentLanguage.label}</span>
+              </button>
+              <div class="language-switch__menu" id="language-menu">${languageItems}</div>
+            </div>
             ${authActions}
           </div>
         </div>
@@ -173,18 +136,28 @@ window.LikeGodApp = (() => {
       button.addEventListener('click', () => openPaymentModal(button.dataset.openPayment));
     });
 
+    document.getElementById('theme-toggle')?.addEventListener('click', async () => {
+      await setTheme(state.theme === 1 ? 0 : 1, true);
+    });
+
     const navToggle = document.getElementById('nav-toggle');
     const nav = document.getElementById('main-nav');
-    if (navToggle && nav) {
-      navToggle.addEventListener('click', () => nav.classList.toggle('is-open'));
-    }
+    navToggle?.addEventListener('click', () => nav?.classList.toggle('is-open'));
 
-    const langSelect = document.getElementById('lang-select');
-    if (langSelect) {
-      langSelect.addEventListener('change', async (event) => {
-        await setLanguage(event.target.value);
+    const languageSwitch = document.getElementById('language-switch');
+    const languageTrigger = document.getElementById('language-trigger');
+    const languageMenu = document.getElementById('language-menu');
+
+    languageTrigger?.addEventListener('click', () => languageSwitch?.classList.toggle('is-open'));
+    document.addEventListener('click', (event) => {
+      if (!languageSwitch?.contains(event.target)) languageSwitch?.classList.remove('is-open');
+    });
+    languageMenu?.querySelectorAll('[data-language-option]').forEach((optionButton) => {
+      optionButton.addEventListener('click', async () => {
+        languageSwitch.classList.remove('is-open');
+        await setLanguage(optionButton.dataset.languageOption);
       });
-    }
+    });
   }
 
   function renderFooter() {
@@ -235,8 +208,8 @@ window.LikeGodApp = (() => {
             </div>
             <div class="form-fields">
               <div class="form-group">
-                <label for="payment-method-select" data-i18n="common.modal.method"></label>
-                <select id="payment-method-select" class="select"></select>
+                <label data-i18n="common.modal.method"></label>
+                <div id="payment-method-cards" class="payment-method-grid"></div>
               </div>
               <div class="form-group">
                 <label for="payment-amount-input" data-i18n="common.modal.amount"></label>
@@ -297,6 +270,18 @@ window.LikeGodApp = (() => {
     setTimeout(() => toast.remove(), 3600);
   }
 
+  function renderPaymentMethods() {
+    const cards = document.getElementById('payment-method-cards');
+    if (!cards) return;
+    cards.innerHTML = window.LikeGodPayments.renderMethodCards(state.paymentMethods, state.selectedPaymentMethodId);
+    cards.querySelectorAll('[data-payment-method]').forEach((button) => {
+      button.addEventListener('click', () => {
+        state.selectedPaymentMethodId = Number(button.dataset.paymentMethod);
+        renderPaymentMethods();
+      });
+    });
+  }
+
   async function openPaymentModal(type = 'deposit', options = {}) {
     if (!state.user) {
       showToast(t('common.errors.authRequired'), 'warning');
@@ -305,15 +290,14 @@ window.LikeGodApp = (() => {
 
     try {
       state.paymentContext = { type, onSuccess: options.onSuccess || null };
-      const methods = await api(`/api/v1/payments/methods?type=${type}`, { headers: {} });
-      const select = document.getElementById('payment-method-select');
+      state.paymentMethods = await api(`/api/v1/payments/methods?type=${type}`, { headers: {} });
+      state.selectedPaymentMethodId = state.paymentMethods[0]?.id || null;
+
       const modalTitle = document.getElementById('payment-modal-title');
       const modalText = document.getElementById('payment-modal-text');
       const submitButton = document.getElementById('payment-submit-btn');
       const addressGroup = document.getElementById('payment-address-group');
       const warning = document.getElementById('payment-warning');
-
-      select.innerHTML = methods.map((method) => `<option value="${method.id}">${method.name} • ${method.commission_label}</option>`).join('');
 
       if (type === 'withdraw') {
         modalTitle.textContent = t('common.modal.withdrawTitle');
@@ -330,6 +314,7 @@ window.LikeGodApp = (() => {
       }
 
       submitButton.onclick = submitPaymentModal;
+      renderPaymentMethods();
       applyTranslations(document.getElementById('shared-payment-modal'));
       openModal('shared-payment-modal');
     } catch (error) {
@@ -338,13 +323,18 @@ window.LikeGodApp = (() => {
   }
 
   async function submitPaymentModal() {
-    const methodId = Number(document.getElementById('payment-method-select').value);
+    const methodId = Number(state.selectedPaymentMethodId);
     const amount = Number(document.getElementById('payment-amount-input').value || 0);
     const address = document.getElementById('payment-address-input').value.trim();
     const { type, onSuccess } = state.paymentContext;
 
     if (!amount || amount <= 0) {
       showToast(t('common.errors.invalidAmount'), 'warning');
+      return;
+    }
+
+    if (!Number.isFinite(methodId) || methodId < 0) {
+      showToast(t('common.errors.selectMethod'), 'warning');
       return;
     }
 
@@ -369,9 +359,7 @@ window.LikeGodApp = (() => {
       }
 
       closeModal('shared-payment-modal');
-      if (typeof onSuccess === 'function') {
-        await onSuccess(payload);
-      }
+      if (typeof onSuccess === 'function') await onSuccess(payload);
       await refreshSession();
       renderNavbar();
     } catch (error) {
@@ -379,15 +367,15 @@ window.LikeGodApp = (() => {
     }
   }
 
-  async function setLanguage(lang) {
+  async function setLanguage(lang, sync = true) {
     await loadTranslations(lang);
-    if (state.user) {
+    if (sync && state.user) {
       try {
         await api('/user/update', {
           method: 'POST',
-          body: JSON.stringify({ language: lang })
+          body: JSON.stringify({ language: state.lang })
         });
-        state.user.language = lang;
+        state.user.language = state.lang;
       } catch (error) {
         showToast(error.message, 'warning');
       }
@@ -395,7 +383,40 @@ window.LikeGodApp = (() => {
     renderNavbar();
     renderFooter();
     applyTranslations();
-    document.dispatchEvent(new CustomEvent('likeagod:language-changed', { detail: { lang } }));
+    document.dispatchEvent(new CustomEvent('likeagod:language-changed', { detail: { lang: state.lang } }));
+  }
+
+  async function setTheme(theme, sync = false) {
+    state.theme = themeTools.applyTheme(theme);
+    if (state.user) state.user.theme = state.theme;
+    renderNavbar();
+    if (sync && state.user) {
+      try {
+        await api('/user/update', {
+          method: 'POST',
+          body: JSON.stringify({ theme: state.theme })
+        });
+      } catch (error) {
+        showToast(error.message, 'warning');
+      }
+    }
+    document.dispatchEvent(new CustomEvent('likeagod:theme-changed', { detail: { theme: state.theme } }));
+  }
+
+  async function setEffects(enabled, type = null, sync = false) {
+    effectsTools.configure({ enabled, type });
+    if (state.user) state.user.effects = Boolean(enabled);
+    if (sync && state.user) {
+      try {
+        await api('/user/update', {
+          method: 'POST',
+          body: JSON.stringify({ effects: Boolean(enabled) })
+        });
+      } catch (error) {
+        showToast(error.message, 'warning');
+      }
+    }
+    document.dispatchEvent(new CustomEvent('likeagod:effects-changed', { detail: effectsTools.getState() }));
   }
 
   async function refreshSession() {
@@ -405,16 +426,20 @@ window.LikeGodApp = (() => {
   async function boot(options = {}) {
     ensureSharedUi();
     await loadLandingData();
-    await loadTranslations(detectLanguage());
+    await loadTranslations(i18n.detectLanguage(state.user));
+
+    state.theme = themeTools.resolveInitialTheme(state.user);
+    themeTools.applyTheme(state.theme);
+
+    const effectsInitial = effectsTools.resolveInitial(state.user);
+    effectsTools.configure(effectsInitial);
+
     renderNavbar();
     renderFooter();
     applyTranslations();
-    if (options.titleKey) {
-      document.title = t(options.titleKey);
-    }
-    if (typeof options.onReady === 'function') {
-      await options.onReady();
-    }
+
+    if (options.titleKey) document.title = t(options.titleKey);
+    if (typeof options.onReady === 'function') await options.onReady();
   }
 
   return {
@@ -426,12 +451,16 @@ window.LikeGodApp = (() => {
     refreshSession,
     renderNavbar,
     setLanguage,
+    setTheme,
+    setEffects,
     showToast,
     state,
     statusLabel,
     t,
     applyTranslations,
     getUser: () => state.user,
-    getLandingData: () => state.landingData
+    getLandingData: () => state.landingData,
+    getTheme: () => state.theme,
+    getEffectsState: () => effectsTools.getState()
   };
 })();
