@@ -397,5 +397,5 @@ def test_create_news_stores_multilang_titles(monkeypatch, tmp_path):
     resp_zh = client.get("/news?lang=zh")
     assert resp_zh.json()[0]["title"] == "突发新闻"
 
-    resp_missing = client.get("/news?lang=xx")  # unsupported lang → fallback to en
-    assert resp_missing.json()[0]["title"] == "Breaking News"
+    resp_unsupported = client.get("/news?lang=xx")  # unsupported lang → fallback to en
+    assert resp_unsupported.json()[0]["title"] == "Breaking News"

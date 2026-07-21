@@ -1022,7 +1022,7 @@ async def get_my_duel_history(current_user: User = Depends(require_auth), db: Se
     duels = db.query(Duel).filter(
         ((Duel.creator_id == current_user.id) | (Duel.guest_id == current_user.id)),
         Duel.status.in_(["completed", "cancelled"])
-    ).distinct().order_by(Duel.ended_at.desc(), Duel.created_at.desc()).all()
+    ).order_by(Duel.ended_at.desc(), Duel.created_at.desc()).all()
 
     result = []
     for d in duels:
@@ -1375,7 +1375,12 @@ async def create_news(data: dict, current_user: User = Depends(require_admin), d
     title_es = normalize_string(data.get("title_es", ""), field="title_es", max_length=120) or ""
     title_zh = normalize_string(data.get("title_zh", ""), field="title_zh", max_length=120) or ""
 
-    title_json = json.dumps({"en": title_en, "ru": title_ru or title_en, "es": title_es or title_en, "zh": title_zh or title_en}, ensure_ascii=False)
+    title_json = json.dumps({
+        "en": title_en,
+        "ru": title_ru if title_ru else title_en,
+        "es": title_es if title_es else title_en,
+        "zh": title_zh if title_zh else title_en,
+    }, ensure_ascii=False)
 
     image_path = validate_url_field(data.get("image_path", ""), field="image_path", allow_empty=False)
     if not image_path:
