@@ -46,7 +46,9 @@
       "authRequired": "请先登录。",
       "invalidAmount": "请输入有效金额。",
       "genericError": "请求失败，请重试。",
-      "selectMethod": "请先选择支付方式。"
+      "selectMethod": "请先选择支付方式。",
+      "usernameTaken": "该用户名已被占用。",
+      "usernameInvalid": "用户名无效，仅支持字母和数字（3–20个字符）。"
     },
     "toasts": {
       "saved": "更改已保存。",
@@ -66,6 +68,10 @@
       "bank": "奖池",
       "elo": "ELO",
       "creatorRank": "创建者段位"
+    },
+    "pagination": {
+      "prev": "上一页",
+      "next": "下一页"
     }
   },
   "statuses": {
@@ -257,7 +263,9 @@
       "effectRain": "数字雨",
       "effectSnow": "雪花",
       "effectsOn": "已开启",
-      "effectsOff": "已关闭"
+      "effectsOff": "已关闭",
+      "username": "用户名",
+      "usernamePlaceholder": "新用户名"
     }
   },
   "admin": {

@@ -192,6 +192,8 @@ window.App = (() => {
     ];
     if (u) links.push(navLink('/p/' + encodeURIComponent(u.username), t('common.nav.profile'), path.startsWith('/p/')));
     if (u && u.role === 'admin') links.push(navLink('/admin', t('common.nav.admin'), path === '/admin'));
+    // Logout link shown only in the mobile hamburger menu (icon button is hidden on mobile via CSS)
+    if (u) links.push(`<a class="nav-link mobile-visible" href="/auth/logout">${t('common.nav.logout')}</a>`);
 
     const themeIcon = window.Theme.current === 'dark' ? icons.sun : icons.moon;
 
@@ -762,17 +764,32 @@ function renderBilling(me) {
 }
 
 async function renderHistory() {
+  const PAGE_SIZE = 8;
   const A = App, t = A.t;
   const root = document.getElementById('history-root');
   if (!root) return;
   root.innerHTML = `<span class="eyebrow">${t('profile.history.title')}</span>
     <h2>${t('profile.history.title')}</h2>
     <p style="margin-bottom:16px">${t('profile.history.subtitle')}</p>
-    <div id="history-table"></div>`;
+    <div id="history-table"></div>
+    <div id="history-pagination"></div>`;
   const table = document.getElementById('history-table');
+  const paginationEl = document.getElementById('history-pagination');
+  let rows = [];
   try {
-    const rows = await A.api('GET', '/api/v1/payments/history');
-    if (!rows || !rows.length) { table.innerHTML = `<div class="state-card">${t('common.states.emptyHistory')}</div>`; return; }
+    rows = (await A.api('GET', '/api/v1/payments/history')) || [];
+  } catch (_) {
+    table.innerHTML = `<div class="state-card">${t('common.states.emptyHistory')}</div>`;
+    return;
+  }
+  if (!rows.length) { table.innerHTML = `<div class="state-card">${t('common.states.emptyHistory')}</div>`; return; }
+
+  let currentPage = 0;
+  const totalPages = Math.ceil(rows.length / PAGE_SIZE);
+
+  function renderPage(page) {
+    currentPage = Math.max(0, Math.min(page, totalPages - 1));
+    const pageRows = rows.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
     table.innerHTML = `
       <table class="data-table">
         <thead><tr>
@@ -782,7 +799,7 @@ async function renderHistory() {
           <th>${t('profile.history.columns.destination')}</th>
           <th>${t('profile.history.columns.status')}</th>
         </tr></thead>
-        <tbody>${rows.map((r) => `
+        <tbody>${pageRows.map((r) => `
           <tr>
             <td data-label="${t('profile.history.columns.date')}" class="mono">${A.esc(r.date)}</td>
             <td data-label="${t('profile.history.columns.type')}">${A.esc(r.type)}</td>
@@ -791,9 +808,23 @@ async function renderHistory() {
             <td data-label="${t('profile.history.columns.status')}">${A.esc(r.status)}</td>
           </tr>`).join('')}</tbody>
       </table>`;
-  } catch (_) {
-    table.innerHTML = `<div class="state-card">${t('common.states.emptyHistory')}</div>`;
+    if (totalPages > 1) {
+      paginationEl.innerHTML = `
+        <div class="pagination-controls">
+          <button class="btn-secondary btn-sm" id="hist-prev" ${currentPage === 0 ? 'disabled' : ''}>${t('common.pagination.prev')}</button>
+          <span class="page-info">${currentPage + 1} / ${totalPages}</span>
+          <button class="btn-secondary btn-sm" id="hist-next" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>${t('common.pagination.next')}</button>
+        </div>`;
+      const prev = document.getElementById('hist-prev');
+      const next = document.getElementById('hist-next');
+      if (prev) prev.addEventListener('click', () => renderPage(currentPage - 1));
+      if (next) next.addEventListener('click', () => renderPage(currentPage + 1));
+    } else {
+      paginationEl.innerHTML = '';
+    }
   }
+
+  renderPage(0);
 }
 
 function renderSettings(me) {
@@ -807,6 +838,14 @@ function renderSettings(me) {
     <h2>${t('profile.settings.title')}</h2>
     <p style="margin-bottom:16px">${t('profile.settings.subtitle')}</p>
     <div class="stack-sm">
+      <div class="form-group">
+        <label class="form-label" for="set-username">${t('profile.settings.username')}</label>
+        <div style="display:flex;gap:var(--sp-2)">
+          <input class="form-input" type="text" id="set-username" value="${A.esc(me.username)}"
+                 placeholder="${t('profile.settings.usernamePlaceholder')}" style="flex:1;min-width:0">
+          <button class="btn-secondary btn-sm" id="set-username-save" style="white-space:nowrap">${t('common.actions.save')}</button>
+        </div>
+      </div>
       <div class="form-group">
         <label class="form-label">${t('profile.settings.language')}</label>
         <select class="form-select" id="set-lang">${langOpts}</select>
@@ -836,6 +875,24 @@ function renderSettings(me) {
       </div>
     </div>`;
 
+  document.getElementById('set-username-save').addEventListener('click', async () => {
+    const username = document.getElementById('set-username').value.trim();
+    if (!username) { A.toast(t('common.errors.usernameInvalid'), 'error'); return; }
+    try {
+      await A.api('POST', '/user/update', { username });
+      // Keep local user state in sync so header/nav reflect the new username immediately
+      if (App.state.user) { App.state.user.username = username; App.renderHeader(); }
+      A.toast(t('common.toasts.saved'), 'success');
+    } catch (err) {
+      if (err.status === 409) {
+        A.toast(t('common.errors.usernameTaken'), 'error');
+      } else if (err.status === 400) {
+        A.toast(t('common.errors.usernameInvalid'), 'error');
+      } else {
+        A.toast(err.message || t('common.errors.genericError'), 'error');
+      }
+    }
+  });
   document.getElementById('set-theme').addEventListener('change', () => { window.Theme.toggle(); App.renderHeader(); });
   document.getElementById('set-effect').addEventListener('change', (e) => window.Effects.start(e.target.value));
   document.getElementById('set-lang').addEventListener('change', (e) => {

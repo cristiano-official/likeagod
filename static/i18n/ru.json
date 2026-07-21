@@ -46,7 +46,9 @@
       "authRequired": "Сначала войдите в аккаунт.",
       "invalidAmount": "Введите корректную сумму.",
       "genericError": "Запрос не выполнен. Попробуйте снова.",
-      "selectMethod": "Сначала выберите способ оплаты."
+      "selectMethod": "Сначала выберите способ оплаты.",
+      "usernameTaken": "Это имя пользователя уже занято.",
+      "usernameInvalid": "Недопустимое имя. Используйте только буквы и цифры (3–20 символов)."
     },
     "toasts": {
       "saved": "Изменения сохранены.",
@@ -66,6 +68,10 @@
       "bank": "Банк",
       "elo": "ELO",
       "creatorRank": "Ранг создателя"
+    },
+    "pagination": {
+      "prev": "Назад",
+      "next": "Вперёд"
     }
   },
   "statuses": {
@@ -257,7 +263,9 @@
       "effectRain": "Digital rain",
       "effectSnow": "Снег",
       "effectsOn": "Включено",
-      "effectsOff": "Выключено"
+      "effectsOff": "Выключено",
+      "username": "Имя пользователя",
+      "usernamePlaceholder": "Новое имя пользователя"
     }
   },
   "admin": {
