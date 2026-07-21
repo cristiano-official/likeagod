@@ -579,101 +579,258 @@ App.pages.duel = async function () {
     return;
   }
 
+  // Polling state
+  let pollTimer = null;
+  const POLL_INTERVAL = 4000; // 4 s
+  const POLL_STATUSES = new Set(['warmup', 'playing', 'paused', 'reserving']);
+  const WARMUP_DURATION_MS = 3 * 60 * 1000; // 3 minutes
+
+  function warmupSecondsLeft(warmupStartedAt) {
+    if (!warmupStartedAt) return 0;
+    const start = new Date(warmupStartedAt).getTime();
+    const remaining = Math.max(0, Math.floor((start + WARMUP_DURATION_MS - Date.now()) / 1000));
+    return remaining;
+  }
+
+  function formatCountdown(totalSeconds) {
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  function renderConnStatus(connected, label) {
+    const icon = connected ? '✓' : '…';
+    const cls = connected ? 'conn-ok' : 'conn-wait';
+    return `<span class="${cls}">${icon} ${A.esc(label)}</span>`;
+  }
+
+  async function renderDuel(duel) {
+    const u = A.state.user;
+    const isCreator = u && u.id === duel.creator_id;
+    const isGuest = u && u.id === duel.guest_id;
+
+    // Header
+    if (header) {
+      header.innerHTML = `
+        <span class="eyebrow">${t('duel.hero.eyebrow')} · #${duel.id}</span>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <h1 style="margin:0">${A.esc(duel.map_name)}</h1>
+          ${A.statusBadge(duel.status)}
+        </div>
+        <div class="duel-bank" style="margin-top:12px"><small>${t('duel.info.bank')}</small>${A.money(duel.total_bank)}</div>`;
+    }
+
+    // VS panel
+    if (vs) {
+      const guestSlot = duel.guest_id
+        ? `<div class="player-slot">
+             ${A.avatarMarkup(null, duel.guest_username)}
+             <div class="player-name">${A.esc(duel.guest_username)}</div>
+             <div class="method-meta">${A.rankLabel(duel.guest_rank)} · ELO ${duel.guest_elo}</div>
+             <div class="player-share">${A.money(duel.guest_share)}</div>
+             <span class="method-meta">${t('duel.info.guestShare')}</span>
+           </div>`
+        : `<div class="player-slot open">
+             <div class="player-name">${t('duel.slotOpen')}</div>
+             <div class="method-meta">${t('duel.guestWaiting')}</div>
+           </div>`;
+
+      // Score display for live/paused states
+      const showScore = ['playing', 'paused', 'completed'].includes(duel.status);
+      const scoreHtml = showScore
+        ? `<div class="score-display">
+             <span class="score-creator">${duel.creator_score}</span>
+             <span class="score-sep">:</span>
+             <span class="score-guest">${duel.guest_score}</span>
+           </div>`
+        : '';
+
+      // Connection status badges for warmup
+      const showConn = duel.status === 'warmup' || duel.status === 'reserving';
+      const connHtml = showConn
+        ? `<div class="conn-status">
+             ${renderConnStatus(duel.creator_connected, duel.creator_username || t('duel.info.creatorShare'))}
+             ${renderConnStatus(duel.guest_connected, duel.guest_username || t('duel.info.guestShare'))}
+           </div>`
+        : '';
+
+      vs.innerHTML = `
+        <div class="player-slot">
+          ${A.avatarMarkup(null, duel.creator_username)}
+          <div class="player-name">${A.esc(duel.creator_username)}</div>
+          <div class="method-meta">${A.rankLabel(duel.creator_rank)} · ELO ${duel.creator_elo}</div>
+          <div class="player-share">${A.money(duel.creator_share)}</div>
+          <span class="method-meta">${t('duel.info.creatorShare')}</span>
+        </div>
+        <div class="vs-col">
+          <div class="vs-badge">VS</div>
+          ${scoreHtml}
+          ${connHtml}
+        </div>
+        ${guestSlot}`;
+    }
+
+    // Warmup / live info panel (injected above actions)
+    const infoId = 'duel-live-info';
+    let infoEl = document.getElementById(infoId);
+    if (!infoEl) {
+      infoEl = document.createElement('div');
+      infoEl.id = infoId;
+      infoEl.className = 'card-lg';
+      if (actions) actions.parentNode.insertBefore(infoEl, actions);
+    }
+
+    if (duel.status === 'warmup' || duel.status === 'reserving') {
+      const secsLeft = warmupSecondsLeft(duel.warmup_started_at);
+      const connectBtn = duel.connect_url
+        ? `<a class="btn" href="${A.esc(duel.connect_url)}" target="_blank" rel="noopener noreferrer">${t('duel.warmup.connect')}</a>`
+        : '';
+      infoEl.innerHTML = `
+        <span class="eyebrow">${t('duel.warmup.title')}</span>
+        <p style="margin-bottom:8px">${t('duel.warmup.subtitle')}</p>
+        <div id="warmup-countdown" class="countdown-display">${t('duel.warmup.countdown')}: <strong>${formatCountdown(secsLeft)}</strong></div>
+        ${connectBtn}`;
+      infoEl.classList.remove('hidden');
+      // Tick countdown locally every second
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        const cdEl = document.getElementById('warmup-countdown');
+        if (cdEl && duel.warmup_started_at) {
+          const s = warmupSecondsLeft(duel.warmup_started_at);
+          cdEl.innerHTML = `${t('duel.warmup.countdown')}: <strong>${formatCountdown(s)}</strong>`;
+        }
+        // Also refresh full duel state every POLL_INTERVAL
+        try {
+          const fresh = await A.api('GET', '/api/v1/duels/' + id);
+          if (fresh.status !== duel.status || fresh.creator_connected !== duel.creator_connected || fresh.guest_connected !== duel.guest_connected) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+            duel = fresh;
+            await renderDuel(duel);
+          }
+        } catch (_) {}
+      }, POLL_INTERVAL);
+    } else if (duel.status === 'playing') {
+      // Fetch latest rounds for live feed
+      let rounds = [];
+      try { rounds = await A.api('GET', '/api/v1/duels/' + id + '/rounds') || []; } catch (_) {}
+      const lastRounds = rounds.slice(-5).reverse();
+      const roundRows = lastRounds.map((r) =>
+        `<div class="round-row"><span>${t('duel.live.round')} ${r.round_number}</span><span>${r.creator_score}:${r.guest_score}</span></div>`
+      ).join('') || `<span class="method-meta">—</span>`;
+      const connectBtn = duel.connect_url
+        ? `<a class="btn" href="${A.esc(duel.connect_url)}" target="_blank" rel="noopener noreferrer">${t('duel.warmup.connect')}</a>`
+        : '';
+      infoEl.innerHTML = `
+        <span class="eyebrow">${t('duel.live.score')}: ${duel.creator_score} — ${duel.guest_score}</span>
+        ${connectBtn}
+        <div style="margin-top:12px"><strong>${t('duel.live.roundHistory')}</strong></div>
+        <div class="stack-sm" style="margin-top:8px">${roundRows}</div>`;
+      infoEl.classList.remove('hidden');
+      // Poll for updates
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        try {
+          const fresh = await A.api('GET', '/api/v1/duels/' + id);
+          if (fresh.status !== duel.status || fresh.last_round_number !== duel.last_round_number) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+            duel = fresh;
+            await renderDuel(duel);
+          }
+        } catch (_) {}
+      }, POLL_INTERVAL);
+    } else if (duel.status === 'paused') {
+      const connectBtn = duel.connect_url
+        ? `<a class="btn" href="${A.esc(duel.connect_url)}" target="_blank" rel="noopener noreferrer">${t('duel.warmup.connect')}</a>`
+        : '';
+      infoEl.innerHTML = `
+        <span class="eyebrow">${t('duel.paused.title')}</span>
+        <p>${t('duel.paused.subtitle')}</p>
+        ${connectBtn}`;
+      infoEl.classList.remove('hidden');
+      // Poll for resume
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        try {
+          const fresh = await A.api('GET', '/api/v1/duels/' + id);
+          if (fresh.status !== 'paused') {
+            clearInterval(pollTimer);
+            pollTimer = null;
+            duel = fresh;
+            await renderDuel(duel);
+          }
+        } catch (_) {}
+      }, POLL_INTERVAL);
+    } else {
+      infoEl.innerHTML = '';
+      infoEl.classList.add('hidden');
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    }
+
+    // Actions panel
+    if (actions) {
+      const btns = [];
+      if (u && !isCreator && !isGuest && duel.status === 'waiting') {
+        btns.push(`<button class="btn" data-act="join">${t('duel.actions.join')}</button>`);
+      }
+      if (isCreator && duel.status === 'waiting') {
+        btns.push(`<button class="btn-danger" data-act="cancel">${t('duel.actions.cancel')}</button>`);
+      }
+      if ((isCreator || isGuest) && ['ready', 'playing', 'processing'].includes(duel.status)) {
+        btns.push(`<button class="btn" data-act="confirm">${t('duel.actions.confirm')}</button>`);
+        btns.push(`<button class="btn-danger" data-act="dispute">${t('duel.actions.dispute')}</button>`);
+      }
+      actions.innerHTML = `
+        <span class="eyebrow">${t('duel.actions.title')}</span>
+        <p style="margin-bottom:16px">${t('duel.actions.subtitle')}</p>
+        <div class="form-actions">${btns.length ? btns.join('') : `<span class="method-meta">${t('duel.actions.noActions')}</span>`}</div>`;
+
+      actions.querySelectorAll('[data-act]').forEach((b) => {
+        b.addEventListener('click', () => duelAction(b.dataset.act, duel.id));
+      });
+    }
+
+    // Requests panel (creator + waiting only)
+    if (reqPanel) {
+      if (isCreator && duel.status === 'waiting') {
+        reqPanel.classList.remove('hidden');
+        reqPanel.innerHTML = `<span class="eyebrow">${t('duel.requests.title')}</span>
+          <p style="margin-bottom:16px">${t('duel.requests.subtitle')}</p>
+          <div class="stack-sm" id="requests-list"></div>`;
+        try {
+          const reqs = await A.api('GET', `/api/v1/duels/${id}/requests`);
+          const list = document.getElementById('requests-list');
+          if (!reqs || !reqs.length) list.innerHTML = `<div class="state-card">${t('common.states.emptyRequests')}</div>`;
+          else {
+            list.innerHTML = reqs.map((r) => `
+              <div class="request-row">
+                ${A.avatarMarkup(r.avatar, r.username)}
+                <div class="req-name">${A.esc(r.username)}<br><span class="method-meta">${A.rankLabel(r.rank)} · ELO ${r.elo}</span></div>
+                <button class="btn btn-sm" data-accept="${r.request_id}">${t('duel.requests.accept')}</button>
+              </div>`).join('');
+            list.querySelectorAll('[data-accept]').forEach((b) => {
+              b.addEventListener('click', async () => {
+                try { await A.api('POST', `/api/v1/requests/${b.dataset.accept}/accept`); A.toast(t('duel.toasts.accepted'), 'success'); setTimeout(() => location.reload(), 400); }
+                catch (err) { A.toast(err.message, 'error'); }
+              });
+            });
+          }
+        } catch (_) {}
+      } else {
+        reqPanel.classList.add('hidden');
+      }
+    }
+  }
+
   let duel;
   try { duel = await A.api('GET', '/api/v1/duels/' + id); }
   catch (err) { if (header) header.innerHTML = `<div class="state-card"><h3>${err.message}</h3></div>`; return; }
 
-  const u = A.state.user;
-  const isCreator = u && u.id === duel.creator_id;
-  const isGuest = u && u.id === duel.guest_id;
+  await renderDuel(duel);
 
-  if (header) {
-    header.innerHTML = `
-      <span class="eyebrow">${t('duel.hero.eyebrow')} · #${duel.id}</span>
-      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-        <h1 style="margin:0">${A.esc(duel.map_name)}</h1>
-        ${A.statusBadge(duel.status)}
-      </div>
-      <div class="duel-bank" style="margin-top:12px"><small>${t('duel.info.bank')}</small>${A.money(duel.total_bank)}</div>`;
-  }
-
-  if (vs) {
-    const guestSlot = duel.guest_id
-      ? `<div class="player-slot">
-           ${A.avatarMarkup(null, duel.guest_username)}
-           <div class="player-name">${A.esc(duel.guest_username)}</div>
-           <div class="method-meta">${A.rankLabel(duel.guest_rank)} · ELO ${duel.guest_elo}</div>
-           <div class="player-share">${A.money(duel.guest_share)}</div>
-           <span class="method-meta">${t('duel.info.guestShare')}</span>
-         </div>`
-      : `<div class="player-slot open">
-           <div class="player-name">${t('duel.slotOpen')}</div>
-           <div class="method-meta">${t('duel.guestWaiting')}</div>
-         </div>`;
-    vs.innerHTML = `
-      <div class="player-slot">
-        ${A.avatarMarkup(null, duel.creator_username)}
-        <div class="player-name">${A.esc(duel.creator_username)}</div>
-        <div class="method-meta">${A.rankLabel(duel.creator_rank)} · ELO ${duel.creator_elo}</div>
-        <div class="player-share">${A.money(duel.creator_share)}</div>
-        <span class="method-meta">${t('duel.info.creatorShare')}</span>
-      </div>
-      <div class="vs-badge">VS</div>
-      ${guestSlot}`;
-  }
-
-  if (actions) {
-    const btns = [];
-    if (u && !isCreator && !isGuest && duel.status === 'waiting') {
-      btns.push(`<button class="btn" data-act="join">${t('duel.actions.join')}</button>`);
-    }
-    if (isCreator && duel.status === 'waiting') {
-      btns.push(`<button class="btn-danger" data-act="cancel">${t('duel.actions.cancel')}</button>`);
-    }
-    if ((isCreator || isGuest) && ['ready', 'playing', 'processing'].includes(duel.status)) {
-      btns.push(`<button class="btn" data-act="confirm">${t('duel.actions.confirm')}</button>`);
-      btns.push(`<button class="btn-danger" data-act="dispute">${t('duel.actions.dispute')}</button>`);
-    }
-    actions.innerHTML = `
-      <span class="eyebrow">${t('duel.actions.title')}</span>
-      <p style="margin-bottom:16px">${t('duel.actions.subtitle')}</p>
-      <div class="form-actions">${btns.length ? btns.join('') : `<span class="method-meta">${t('duel.actions.noActions')}</span>`}</div>`;
-
-    actions.querySelectorAll('[data-act]').forEach((b) => {
-      b.addEventListener('click', () => duelAction(b.dataset.act, duel.id));
-    });
-  }
-
-  // requests panel (creator + waiting)
-  if (reqPanel) {
-    if (isCreator && duel.status === 'waiting') {
-      reqPanel.classList.remove('hidden');
-      reqPanel.innerHTML = `<span class="eyebrow">${t('duel.requests.title')}</span>
-        <p style="margin-bottom:16px">${t('duel.requests.subtitle')}</p>
-        <div class="stack-sm" id="requests-list"></div>`;
-      try {
-        const reqs = await A.api('GET', `/api/v1/duels/${id}/requests`);
-        const list = document.getElementById('requests-list');
-        if (!reqs || !reqs.length) list.innerHTML = `<div class="state-card">${t('common.states.emptyRequests')}</div>`;
-        else {
-          list.innerHTML = reqs.map((r) => `
-            <div class="request-row">
-              ${A.avatarMarkup(r.avatar, r.username)}
-              <div class="req-name">${A.esc(r.username)}<br><span class="method-meta">${A.rankLabel(r.rank)} · ELO ${r.elo}</span></div>
-              <button class="btn btn-sm" data-accept="${r.request_id}">${t('duel.requests.accept')}</button>
-            </div>`).join('');
-          list.querySelectorAll('[data-accept]').forEach((b) => {
-            b.addEventListener('click', async () => {
-              try { await A.api('POST', `/api/v1/requests/${b.dataset.accept}/accept`); A.toast(t('duel.toasts.accepted'), 'success'); setTimeout(() => location.reload(), 400); }
-              catch (err) { A.toast(err.message, 'error'); }
-            });
-          });
-        }
-      } catch (_) {}
-    } else {
-      reqPanel.classList.add('hidden');
-    }
-  }
+  // Clean up polling when page is navigated away
+  window.addEventListener('beforeunload', () => { if (pollTimer) clearInterval(pollTimer); }, { once: true });
 };
 
 async function duelAction(act, id) {

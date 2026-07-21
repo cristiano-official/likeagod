@@ -77,10 +77,14 @@
   "statuses": {
     "waiting": "Waiting",
     "ready": "Ready",
+    "reserving": "Reserving server",
+    "warmup": "Warmup",
     "playing": "Playing",
+    "paused": "Paused",
     "processing": "Processing",
     "disputed": "Disputed",
-    "completed": "Completed"
+    "completed": "Completed",
+    "cancelled": "Cancelled"
   },
   "footer": {
     "description": "Money duels for CS2 with a focused dark UI, platform escrow, and manual-ready production deployment.",
@@ -180,6 +184,25 @@
       "map": "Map",
       "creatorShare": "Creator share",
       "guestShare": "Guest share"
+    },
+    "warmup": {
+      "countdown": "Warmup ends in",
+      "connect": "Connect to server",
+      "creatorConnected": "Creator connected",
+      "guestConnected": "Guest connected",
+      "creatorWaiting": "Creator waiting",
+      "guestWaiting2": "Guest waiting",
+      "title": "Warmup phase",
+      "subtitle": "Both players must connect before warmup ends."
+    },
+    "live": {
+      "score": "Score",
+      "round": "Round",
+      "roundHistory": "Round history"
+    },
+    "paused": {
+      "title": "Match paused",
+      "subtitle": "Waiting for reconnect…"
     },
     "actions": {
       "title": "Room actions",

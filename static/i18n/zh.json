@@ -77,10 +77,14 @@
   "statuses": {
     "waiting": "等待中",
     "ready": "已就绪",
+    "reserving": "预留服务器",
+    "warmup": "热身中",
     "playing": "进行中",
+    "paused": "已暂停",
     "processing": "处理中",
     "disputed": "争议中",
-    "completed": "已完成"
+    "completed": "已完成",
+    "cancelled": "已取消"
   },
   "footer": {
     "description": "面向 CS2 金钱对局的深色界面，带 escrow 逻辑，并可直接用于生产部署。",
@@ -180,6 +184,25 @@
       "map": "地图",
       "creatorShare": "创建者份额",
       "guestShare": "挑战者份额"
+    },
+    "warmup": {
+      "countdown": "热身结束倒计时",
+      "connect": "连接服务器",
+      "creatorConnected": "创建者已连接",
+      "guestConnected": "挑战者已连接",
+      "creatorWaiting": "创建者等待中",
+      "guestWaiting2": "挑战者等待中",
+      "title": "热身阶段",
+      "subtitle": "两名玩家必须在热身结束前连接服务器。"
+    },
+    "live": {
+      "score": "比分",
+      "round": "回合",
+      "roundHistory": "回合记录"
+    },
+    "paused": {
+      "title": "比赛已暂停",
+      "subtitle": "等待重新连接…"
     },
     "actions": {
       "title": "房间操作",
