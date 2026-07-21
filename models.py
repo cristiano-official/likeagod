@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float, Text
 from database import Base
 from datetime import datetime
 
@@ -37,6 +37,21 @@ class UserStats(Base):
     deaths = Column(Integer, default=0)
 
 
+class GameServer(Base):
+    """Represents a CS2 dedicated-server slot managed via dathost."""
+    __tablename__ = "game_servers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    label = Column(String)                        # e.g. "EU-1"
+    connect_url = Column(String)                  # steam://connect/ip:port
+    ip = Column(String)
+    port = Column(Integer)
+    status = Column(String, default="open")       # open, busy, offline
+    current_duel_id = Column(Integer, ForeignKey("duels.id"), nullable=True)
+    last_heartbeat_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Duel(Base):
     __tablename__ = "duels"
 
@@ -52,7 +67,9 @@ class Duel(Base):
     min_rank = Column(Integer, default=1)
     max_rank = Column(Integer, default=10)
     is_private = Column(Boolean, default=False)
-    status = Column(String, default='waiting')  # waiting, ready, playing, processing, disputed, completed
+    # Status lifecycle: waiting → warmup → playing ⇄ paused → completed|cancelled
+    # Legacy states also supported: ready, processing, disputed
+    status = Column(String, default='waiting')
 
     creator_score = Column(Integer, default=0)
     guest_score = Column(Integer, default=0)
@@ -62,6 +79,35 @@ class Duel(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
     ended_at = Column(DateTime, nullable=True)
+
+    # Match-orchestration fields (CS2 server integration)
+    game_server_id = Column(Integer, ForeignKey("game_servers.id"), nullable=True)
+    reserved_at = Column(DateTime, nullable=True)         # when server was reserved
+    warmup_started_at = Column(DateTime, nullable=True)   # when 3-min warmup began
+    live_started_at = Column(DateTime, nullable=True)     # when live play began
+    paused_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    pause_started_at = Column(DateTime, nullable=True)
+    creator_pause_used = Column(Boolean, default=False)
+    guest_pause_used = Column(Boolean, default=False)
+    last_round_number = Column(Integer, default=0)
+    creator_connected = Column(Boolean, default=False)
+    guest_connected = Column(Boolean, default=False)
+    # Premium snapshots taken at reservation time for skin-changer access
+    creator_is_premium = Column(Boolean, default=False)
+    guest_is_premium = Column(Boolean, default=False)
+
+
+class DuelRoundEvent(Base):
+    """Per-round stats reported by the CS2 plugin during live play."""
+    __tablename__ = "duel_round_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    duel_id = Column(Integer, ForeignKey("duels.id"), index=True)
+    round_number = Column(Integer)
+    creator_score = Column(Integer)
+    guest_score = Column(Integer)
+    payload = Column(Text, nullable=True)  # JSON blob for extra per-round kill/death stats
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class DuelRequest(Base):

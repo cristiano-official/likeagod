@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -97,6 +97,28 @@ class DuelDetailsResponse(BaseModel):
     status: str
     creator_share: float
     guest_share: float
+    # Match-orchestration fields
+    game_server_id: Optional[int] = None
+    connect_url: Optional[str] = None
+    warmup_started_at: Optional[datetime] = None
+    live_started_at: Optional[datetime] = None
+    reserved_at: Optional[datetime] = None
+    creator_connected: Optional[bool] = None
+    guest_connected: Optional[bool] = None
+    last_round_number: Optional[int] = None
+    paused_by_user_id: Optional[int] = None
+
+
+class DuelRoundEventResponse(BaseModel):
+    id: int
+    duel_id: int
+    round_number: int
+    creator_score: int
+    guest_score: int
+    payload: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TariffResponse(BaseModel):
@@ -170,3 +192,34 @@ class MainPayloadResponse(BaseModel):
     user: Optional[MainUserPayload] = None
     stats: Optional[MainStatsPayload] = None
     my_duels: List[ActiveDuelPayload]
+
+
+# ==================== GAME SERVER SCHEMAS ====================
+
+class GameServerCreate(BaseModel):
+    label: str
+    connect_url: str
+    ip: str
+    port: int
+
+
+class GameServerUpdate(BaseModel):
+    label: Optional[str] = None
+    connect_url: Optional[str] = None
+    ip: Optional[str] = None
+    port: Optional[int] = None
+    status: Optional[str] = None
+
+
+class GameServerResponse(BaseModel):
+    id: int
+    label: Optional[str] = None
+    connect_url: Optional[str] = None
+    ip: Optional[str] = None
+    port: Optional[int] = None
+    status: str
+    current_duel_id: Optional[int] = None
+    last_heartbeat_at: Optional[datetime] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

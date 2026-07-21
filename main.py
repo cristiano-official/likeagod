@@ -26,13 +26,17 @@ from sqlalchemy.orm import Session
 from pysteamsignin.steamsignin import SteamSignIn
 from dotenv import load_dotenv
 
-from models import User, UserStats, Duel, Base, News, DuelRequest, PremiumTariff, TransactionHistory, PlatformSettings, \
+from models import User, UserStats, Duel, DuelRoundEvent, Base, GameServer, News, DuelRequest, PremiumTariff, TransactionHistory, PlatformSettings, \
     PaymentMethod
 from database import engine, session_local
 from schemas import (
     DuelDetailsResponse,
     DuelLobbyResponse,
     DuelRequestResponse,
+    DuelRoundEventResponse,
+    GameServerCreate,
+    GameServerResponse,
+    GameServerUpdate,
     MainPayloadResponse,
     NewsResponse,
     PaymentHistoryEntry,
@@ -107,8 +111,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["Accept", "Content-Type", "X-CSRF-Token", "X-Requested-With"],
+    allow_methods=["GET", "POST", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Accept", "Content-Type", "X-CSRF-Token", "X-Requested-With", "X-Server-Api-Key"],
 )
 
 steam_login = SteamSignIn()
@@ -341,11 +345,13 @@ def get_rate_limit_rule(request: Request) -> Optional[tuple[str, int, int]]:
         path.startswith("/api/v1/admin/") or path == "/news/create" or path.startswith("/news/")
     ):
         return "admin", 60, 20
+    if path.startswith("/api/v1/server/"):
+        return "server", 60, 120
     return None
 
 
 def is_csrf_exempt_path(path: str) -> bool:
-    return path == "/api/v1/payments/webhook"
+    return path == "/api/v1/payments/webhook" or path.startswith("/api/v1/server/")
 
 
 def verify_csrf(request: Request):
@@ -472,6 +478,20 @@ def require_admin(current_user: User = Depends(require_auth)):
     return current_user
 
 
+def require_server_key(request: Request):
+    """Authenticate CS2 server-to-server calls via X-Server-Api-Key header.
+
+    NOTE: This currently uses a single shared secret for all CS2 servers
+    (single dathost operator). TODO: add per-server API keys if multiple
+    independent CS2 hosting operators are supported in the future.
+    """
+    if not SERVER_API_KEY:
+        raise HTTPException(status_code=503, detail="Server API key not configured")
+    provided = request.headers.get("X-Server-Api-Key", "")
+    if not provided or not secrets.compare_digest(provided, SERVER_API_KEY):
+        raise HTTPException(status_code=401, detail="Invalid or missing server API key")
+
+
 def calculate_shares(creator_elo: int, opponent_elo: int, total_bank: float):
     weight_creator = 10 ** (creator_elo / 400)
     weight_opponent = 10 ** (opponent_elo / 400)
@@ -489,7 +509,7 @@ def check_wager_limit(wagered: float, required_share: float):
 def check_active_match_existence(user_id: int, db: Session):
     match = db.query(Duel).filter(
         ((Duel.creator_id == user_id) | (Duel.guest_id == user_id)),
-        Duel.status.in_(['waiting', 'ready', 'playing', 'processing', 'disputed'])
+        Duel.status.in_(_ACTIVE_STATUSES)
     ).first()
     if match:
         raise HTTPException(status_code=400, detail=f"Action blocked: You are already in an active match #{match.id}")
@@ -518,11 +538,128 @@ def get_duel_or_404(duel_id: int, db: Session) -> Duel:
     return duel
 
 
+# ==================== MATCH-ORCHESTRATION HELPERS ====================
+
+_RESERVATION_TIMEOUT = timedelta(minutes=5)
+_ACTIVE_STATUSES = {'waiting', 'ready', 'playing', 'processing', 'disputed', 'warmup', 'paused', 'reserving'}
+
+
+def _release_server(server: GameServer, db: Session) -> None:
+    """Mark a game server as open and clear its current duel binding."""
+    server.status = "open"
+    server.current_duel_id = None
+
+
+def _release_frozen_balances(duel: Duel, db: Session) -> None:
+    """Unfreeze both players' frozen balance contributions for a duel."""
+    creator_stats = db.query(UserStats).filter(UserStats.user_id == duel.creator_id).first()
+    if creator_stats:
+        creator_stats.balance = round(creator_stats.balance + duel.creator_share, 2)
+        creator_stats.frozen_balance = round(max(0.0, creator_stats.frozen_balance - duel.creator_share), 2)
+    if duel.guest_id:
+        guest_stats = db.query(UserStats).filter(UserStats.user_id == duel.guest_id).first()
+        if guest_stats:
+            guest_stats.balance = round(guest_stats.balance + duel.guest_share, 2)
+            guest_stats.frozen_balance = round(max(0.0, guest_stats.frozen_balance - duel.guest_share), 2)
+
+
+def _cancel_duel_and_release(duel: Duel, db: Session) -> None:
+    """Transition a duel to 'cancelled', release server, and unfreeze balances.
+
+    Keeps the duel row as an audit record instead of deleting it.
+    """
+    if duel.game_server_id:
+        server = db.query(GameServer).filter(GameServer.id == duel.game_server_id).first()
+        if server:
+            _release_server(server, db)
+    _release_frozen_balances(duel, db)
+    duel.status = "cancelled"
+    duel.ended_at = datetime.utcnow()
+    db.query(DuelRequest).filter(
+        DuelRequest.duel_id == duel.id, DuelRequest.status == "pending"
+    ).update({"status": "declined"}, synchronize_session=False)
+
+
+def _execute_duel_payout(duel: Duel, winner_id: int, db: Session) -> None:
+    """Apply commission-adjusted payout, ELO update, and balance settlement.
+
+    Reused by both the user-facing confirm endpoint and the CS2 server
+    complete endpoint. Caller is responsible for committing.
+    """
+    creator_stats = db.query(UserStats).filter(UserStats.user_id == duel.creator_id).first()
+    guest_stats = db.query(UserStats).filter(UserStats.user_id == duel.guest_id).first() if duel.guest_id else None
+    winner_stats = creator_stats if winner_id == duel.creator_id else guest_stats
+    loser_stats = guest_stats if winner_id == duel.creator_id else creator_stats
+    commission_percent = get_current_commission(db)
+    payout_amount = round(duel.total_bank * (1 - commission_percent / 100), 2)
+
+    if creator_stats:
+        creator_stats.frozen_balance = round(max(0.0, creator_stats.frozen_balance - duel.creator_share), 2)
+    if guest_stats:
+        guest_stats.frozen_balance = round(max(0.0, guest_stats.frozen_balance - duel.guest_share), 2)
+    if winner_stats:
+        winner_stats.balance = round(winner_stats.balance + payout_amount, 2)
+        winner_stats.wins += 1
+        winner_stats.elo += 20
+    if loser_stats:
+        loser_stats.elo = max(700, loser_stats.elo - 20)
+    if creator_stats:
+        creator_stats.duels += 1
+    if guest_stats:
+        guest_stats.duels += 1
+    duel.winner_id = winner_id
+    duel.status = "completed"
+    duel.ended_at = datetime.utcnow()
+
+    if duel.game_server_id:
+        server = db.query(GameServer).filter(GameServer.id == duel.game_server_id).first()
+        if server:
+            _release_server(server, db)
+
+
+def _validate_final_score(creator_score: int, guest_score: int) -> bool:
+    """Return True only if the reported score is a valid CS2 match-ending state.
+
+    Valid endings: one side reaches 13 with the other at ≤11 (standard win),
+    OR both sides are ≥12 and the leader is exactly 2 ahead (overtime win).
+    """
+    a, b = creator_score, guest_score
+    if a == 13 and b <= 11:
+        return True
+    if b == 13 and a <= 11:
+        return True
+    if a >= 12 and b >= 12 and abs(a - b) == 2:
+        return True
+    return False
+
+
+def _check_and_expire_reservations(db: Session) -> None:
+    """Lazy 5-minute no-show timeout: cancel warmup/reserving duels whose
+    server was reserved more than 5 minutes ago and live play hasn't started.
+    Called at the top of read endpoints and CS2-facing endpoints.
+    """
+    cutoff = datetime.utcnow() - _RESERVATION_TIMEOUT
+    expired = db.query(Duel).filter(
+        Duel.status.in_(["warmup", "reserving"]),
+        Duel.reserved_at < cutoff,
+        Duel.live_started_at.is_(None),
+    ).all()
+    if expired:
+        for duel in expired:
+            _cancel_duel_and_release(duel, db)
+        db.commit()
+
+
 def serialize_duel(duel: Duel, db: Session) -> dict:
     creator = db.query(User).filter(User.id == duel.creator_id).first()
     creator_stats = get_user_stats_or_404(duel.creator_id, db)
     guest = db.query(User).filter(User.id == duel.guest_id).first() if duel.guest_id else None
     guest_stats = get_user_stats_or_404(duel.guest_id, db) if duel.guest_id else None
+    connect_url = None
+    if duel.game_server_id and duel.status in {"warmup", "playing", "paused"}:
+        server = db.query(GameServer).filter(GameServer.id == duel.game_server_id).first()
+        if server:
+            connect_url = server.connect_url
     return {
         "id": duel.id,
         "creator_id": duel.creator_id,
@@ -540,6 +677,15 @@ def serialize_duel(duel: Duel, db: Session) -> dict:
         "status": duel.status,
         "creator_share": duel.creator_share,
         "guest_share": duel.guest_share,
+        "game_server_id": duel.game_server_id,
+        "connect_url": connect_url,
+        "warmup_started_at": duel.warmup_started_at,
+        "live_started_at": duel.live_started_at,
+        "reserved_at": duel.reserved_at,
+        "creator_connected": duel.creator_connected,
+        "guest_connected": duel.guest_connected,
+        "last_round_number": duel.last_round_number,
+        "paused_by_user_id": duel.paused_by_user_id,
     }
 
 
@@ -701,6 +847,7 @@ async def create_duel(data: dict, current_user: User = Depends(require_auth), db
 
 @app.get("/api/v1/duels", response_model=list[DuelLobbyResponse], tags=["Matchmaking"])
 async def list_lobbies(db: Session = Depends(get_db)):
+    _check_and_expire_reservations(db)
     return [{
         "id": d.id, "map_name": d.map_name, "total_bank": d.total_bank, "min_rank": d.min_rank, "max_rank": d.max_rank,
         "creator_username": db.query(User.username).filter(User.id == d.creator_id).scalar(),
@@ -711,6 +858,7 @@ async def list_lobbies(db: Session = Depends(get_db)):
 
 @app.get("/api/v1/duels/{duel_id}", response_model=DuelDetailsResponse, tags=["Matchmaking"])
 async def get_duel_details(duel_id: int, db: Session = Depends(get_db)):
+    _check_and_expire_reservations(db)
     duel = get_duel_or_404(duel_id, db)
     return serialize_duel(duel, db)
 
@@ -773,11 +921,34 @@ async def accept_duel_request(req_id: int, current_user: User = Depends(require_
     if guest_stats.balance < duel.guest_share:
         raise HTTPException(status_code=400, detail="Opponent balance is no longer sufficient")
 
+    # Attempt synchronous server reservation — fail fast with 503 if none available.
+    server = db.query(GameServer).filter(GameServer.status == "open").first()
+    if not server:
+        raise HTTPException(status_code=503, detail="All servers are busy. Please try again shortly.")
+
+    now = datetime.utcnow()
+
+    # Freeze guest balance
     guest_stats.balance = round(guest_stats.balance - duel.guest_share, 2)
     guest_stats.frozen_balance = round(guest_stats.frozen_balance + duel.guest_share, 2)
+
+    # Accept request
     duel.guest_id = req.guest_id
-    duel.status = "ready"
     req.status = "accepted"
+
+    # Reserve server and transition to warmup
+    server.status = "busy"
+    server.current_duel_id = duel.id
+    duel.game_server_id = server.id
+    duel.reserved_at = now
+    duel.warmup_started_at = now
+    duel.status = "warmup"
+
+    # Snapshot premium status at reservation time for skin-changer access
+    creator_user = db.query(User).filter(User.id == duel.creator_id).first()
+    guest_user = db.query(User).filter(User.id == req.guest_id).first()
+    duel.creator_is_premium = bool(creator_user and creator_user.is_premium)
+    duel.guest_is_premium = bool(guest_user and guest_user.is_premium)
 
     db.query(DuelRequest).filter(DuelRequest.duel_id == duel.id, DuelRequest.id != req.id).update(
         {"status": "declined"}, synchronize_session=False
@@ -813,28 +984,8 @@ async def confirm_duel_payout(duel_id: int, current_user: User = Depends(require
     if duel.status not in {"processing", "ready", "playing"}:
         raise HTTPException(status_code=400, detail="This duel cannot be confirmed right now")
 
-    creator_stats = get_user_stats_or_404(duel.creator_id, db)
-    guest_stats = get_user_stats_or_404(duel.guest_id, db) if duel.guest_id else None
     winner_id = duel.winner_id or duel.creator_id
-    winner_stats = creator_stats if winner_id == duel.creator_id else guest_stats
-    loser_stats = guest_stats if winner_id == duel.creator_id else creator_stats
-    commission_percent = get_current_commission(db)
-    payout_amount = round(duel.total_bank * (1 - commission_percent / 100), 2)
-
-    creator_stats.frozen_balance = round(max(0.0, creator_stats.frozen_balance - duel.creator_share), 2)
-    if guest_stats:
-        guest_stats.frozen_balance = round(max(0.0, guest_stats.frozen_balance - duel.guest_share), 2)
-    if winner_stats:
-        winner_stats.balance = round(winner_stats.balance + payout_amount, 2)
-        winner_stats.wins += 1
-        winner_stats.elo += 20
-    if loser_stats:
-        loser_stats.elo = max(700, loser_stats.elo - 20)
-    creator_stats.duels += 1
-    if guest_stats:
-        guest_stats.duels += 1
-    duel.status = "completed"
-    duel.ended_at = datetime.utcnow()
+    _execute_duel_payout(duel, winner_id, db)
     db.commit()
     return {"status": "success"}
 
@@ -1096,7 +1247,354 @@ async def admin_update_commission(data: dict, current_user: User = Depends(requi
     return {"status": "success", "commission_percent": settings.commission_percent}
 
 
-# ==================== MAIN APPLICATION ENGINE LOAD ====================
+# ==================== ADMIN: GAME SERVER CRUD ====================
+
+@app.get("/api/v1/admin/servers", response_model=list[GameServerResponse], tags=["Admin"])
+async def admin_list_servers(current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return db.query(GameServer).order_by(GameServer.id.asc()).all()
+
+
+@app.post("/api/v1/admin/servers", response_model=GameServerResponse, tags=["Admin"])
+async def admin_create_server(data: GameServerCreate, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    if data.port < 1 or data.port > 65535:
+        raise HTTPException(status_code=400, detail="port must be between 1 and 65535")
+    server = GameServer(
+        label=normalize_string(data.label, field="label", max_length=64, allow_empty=False),
+        connect_url=normalize_string(data.connect_url, field="connect_url", max_length=MAX_URL_LENGTH, allow_empty=False),
+        ip=normalize_string(data.ip, field="ip", max_length=64, allow_empty=False),
+        port=data.port,
+    )
+    db.add(server)
+    db.commit()
+    db.refresh(server)
+    return server
+
+
+@app.patch("/api/v1/admin/servers/{server_id}", response_model=GameServerResponse, tags=["Admin"])
+async def admin_update_server(server_id: int, data: GameServerUpdate, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    server = db.query(GameServer).filter(GameServer.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Game server not found")
+    if data.label is not None:
+        server.label = normalize_string(data.label, field="label", max_length=64, allow_empty=False)
+    if data.connect_url is not None:
+        server.connect_url = normalize_string(data.connect_url, field="connect_url", max_length=MAX_URL_LENGTH, allow_empty=False)
+    if data.ip is not None:
+        server.ip = normalize_string(data.ip, field="ip", max_length=64, allow_empty=False)
+    if data.port is not None:
+        if data.port < 1 or data.port > 65535:
+            raise HTTPException(status_code=400, detail="port must be between 1 and 65535")
+        server.port = data.port
+    if data.status is not None:
+        if data.status not in {"open", "busy", "offline"}:
+            raise HTTPException(status_code=400, detail="status must be open, busy, or offline")
+        server.status = data.status
+    db.commit()
+    db.refresh(server)
+    return server
+
+
+@app.delete("/api/v1/admin/servers/{server_id}", tags=["Admin"])
+async def admin_delete_server(server_id: int, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    server = db.query(GameServer).filter(GameServer.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Game server not found")
+    if server.current_duel_id:
+        raise HTTPException(status_code=400, detail="Cannot delete a server that has an active duel bound to it")
+    db.delete(server)
+    db.commit()
+    return {"status": "success"}
+
+
+# ==================== CS2 SERVER-TO-BACKEND API ====================
+
+@app.get("/api/v1/server/servers/available", tags=["CS2 Server"])
+async def server_list_available(
+    _: None = Depends(require_server_key),
+    db: Session = Depends(get_db),
+):
+    """Return game servers currently in 'open' state for plugin/ops introspection."""
+    servers = db.query(GameServer).filter(GameServer.status == "open").all()
+    return [{"id": s.id, "label": s.label, "connect_url": s.connect_url, "ip": s.ip, "port": s.port} for s in servers]
+
+
+@app.post("/api/v1/server/servers/{server_id}/heartbeat", tags=["CS2 Server"])
+async def server_heartbeat(
+    server_id: int,
+    data: dict,
+    _: None = Depends(require_server_key),
+    db: Session = Depends(get_db),
+):
+    """CS2 server reports liveness and optionally self-reports offline for maintenance.
+
+    Does not allow overriding busy status when an active duel is bound.
+    """
+    server = db.query(GameServer).filter(GameServer.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Game server not found")
+
+    new_status = normalize_string(data.get("status", ""), field="status", max_length=16, allow_empty=False)
+    if new_status not in {"open", "busy", "offline"}:
+        raise HTTPException(status_code=400, detail="status must be open, busy, or offline")
+
+    server.last_heartbeat_at = datetime.utcnow()
+
+    # Only allow status changes when no duel is actively bound to this server.
+    if server.current_duel_id is None:
+        server.status = new_status
+    elif new_status == "offline":
+        # Defensive: ignore offline self-report while a duel is in progress.
+        pass
+
+    db.commit()
+    return {"status": "ok", "server_status": server.status}
+
+
+@app.get("/api/v1/server/duels/pending", tags=["CS2 Server"])
+async def server_get_pending_duels(
+    server_id: int,
+    _: None = Depends(require_server_key),
+    db: Session = Depends(get_db),
+):
+    """Return warmup/reserving duels for a given server_id so the plugin knows what to spin up."""
+    _check_and_expire_reservations(db)
+    duels = db.query(Duel).filter(
+        Duel.game_server_id == server_id,
+        Duel.status.in_(["warmup", "reserving"]),
+    ).all()
+    result = []
+    for d in duels:
+        creator = db.query(User).filter(User.id == d.creator_id).first()
+        guest = db.query(User).filter(User.id == d.guest_id).first() if d.guest_id else None
+        skin_changer_enabled = bool(d.creator_is_premium or d.guest_is_premium)
+        result.append({
+            "duel_id": d.id,
+            "map_name": d.map_name,
+            "total_bank": d.total_bank,
+            "creator_steam_id": creator.steam_id if creator else None,
+            "guest_steam_id": guest.steam_id if guest else None,
+            "creator_is_premium": d.creator_is_premium,
+            "guest_is_premium": d.guest_is_premium,
+            "skin_changer_enabled": skin_changer_enabled,
+        })
+    return result
+
+
+@app.post("/api/v1/server/duels/{duel_id}/players-connected", tags=["CS2 Server"])
+async def server_players_connected(
+    duel_id: int,
+    data: dict,
+    _: None = Depends(require_server_key),
+    db: Session = Depends(get_db),
+):
+    """Plugin reports which players have connected during warmup (for frontend display)."""
+    _check_and_expire_reservations(db)
+    duel = get_duel_or_404(duel_id, db)
+    if duel.status not in {"warmup", "reserving"}:
+        raise HTTPException(status_code=409, detail="Duel is not in warmup state")
+    duel.creator_connected = bool(data.get("creator_connected", duel.creator_connected))
+    duel.guest_connected = bool(data.get("guest_connected", duel.guest_connected))
+    db.commit()
+    return {"status": "ok"}
+
+
+@app.post("/api/v1/server/duels/{duel_id}/live-start", tags=["CS2 Server"])
+async def server_live_start(
+    duel_id: int,
+    _: None = Depends(require_server_key),
+    db: Session = Depends(get_db),
+):
+    """Plugin signals that warmup is over and live rounds have begun."""
+    duel = get_duel_or_404(duel_id, db)
+    if duel.status != "warmup":
+        raise HTTPException(status_code=409, detail=f"Cannot start live play from status '{duel.status}'")
+    duel.status = "playing"
+    duel.live_started_at = datetime.utcnow()
+    db.commit()
+    return {"status": "ok"}
+
+
+@app.post("/api/v1/server/duels/{duel_id}/round", tags=["CS2 Server"])
+async def server_round_result(
+    duel_id: int,
+    data: dict,
+    _: None = Depends(require_server_key),
+    db: Session = Depends(get_db),
+):
+    """Plugin reports a completed round's score and optional per-round kill/death stats."""
+    duel = get_duel_or_404(duel_id, db)
+    if duel.status != "playing":
+        raise HTTPException(status_code=409, detail="Round updates are only accepted while the duel is playing")
+
+    round_number = parse_int_field(data.get("round_number"), field="round_number", minimum=1, maximum=999)
+    creator_score = parse_int_field(data.get("creator_score"), field="creator_score", minimum=0, maximum=999)
+    guest_score = parse_int_field(data.get("guest_score"), field="guest_score", minimum=0, maximum=999)
+
+    if round_number != duel.last_round_number + 1:
+        raise HTTPException(status_code=400, detail=f"Expected round {duel.last_round_number + 1}, got {round_number}")
+    if creator_score < duel.creator_score or guest_score < duel.guest_score:
+        raise HTTPException(status_code=400, detail="Score must not regress")
+
+    stats_payload = data.get("stats")
+    payload_text = None
+    if stats_payload is not None:
+        try:
+            payload_text = json.dumps(stats_payload)
+        except (TypeError, ValueError):
+            payload_text = str(stats_payload)
+
+    event = DuelRoundEvent(
+        duel_id=duel.id,
+        round_number=round_number,
+        creator_score=creator_score,
+        guest_score=guest_score,
+        payload=payload_text,
+    )
+    db.add(event)
+    duel.creator_score = creator_score
+    duel.guest_score = guest_score
+    duel.last_round_number = round_number
+    db.commit()
+    return {"status": "ok", "round_number": round_number}
+
+
+@app.get("/api/v1/server/duels/{duel_id}/rounds", response_model=list[DuelRoundEventResponse], tags=["CS2 Server"])
+async def server_get_rounds(
+    duel_id: int,
+    _: None = Depends(require_server_key),
+    db: Session = Depends(get_db),
+):
+    """Return the per-round event log for a duel (useful for replay / audit)."""
+    get_duel_or_404(duel_id, db)
+    return db.query(DuelRoundEvent).filter(
+        DuelRoundEvent.duel_id == duel_id
+    ).order_by(DuelRoundEvent.round_number.asc()).all()
+
+
+@app.post("/api/v1/server/duels/{duel_id}/pause", tags=["CS2 Server"])
+async def server_pause_duel(
+    duel_id: int,
+    data: dict,
+    _: None = Depends(require_server_key),
+    db: Session = Depends(get_db),
+):
+    """Plugin signals that a player disconnected; transitions duel to paused state."""
+    duel = get_duel_or_404(duel_id, db)
+    if duel.status != "playing":
+        raise HTTPException(status_code=409, detail="Duel is not currently playing")
+
+    disconnected_user_id = parse_int_field(data.get("disconnected_user_id"), field="disconnected_user_id", minimum=1)
+    if disconnected_user_id not in {duel.creator_id, duel.guest_id}:
+        raise HTTPException(status_code=400, detail="disconnected_user_id does not match a duel participant")
+
+    is_creator = disconnected_user_id == duel.creator_id
+    if is_creator and duel.creator_pause_used:
+        raise HTTPException(status_code=400, detail="Creator has already used their pause for this duel")
+    if not is_creator and duel.guest_pause_used:
+        raise HTTPException(status_code=400, detail="Guest has already used their pause for this duel")
+
+    duel.status = "paused"
+    duel.paused_by_user_id = disconnected_user_id
+    duel.pause_started_at = datetime.utcnow()
+    if is_creator:
+        duel.creator_pause_used = True
+    else:
+        duel.guest_pause_used = True
+    db.commit()
+    return {"status": "ok"}
+
+
+@app.post("/api/v1/server/duels/{duel_id}/resume", tags=["CS2 Server"])
+async def server_resume_duel(
+    duel_id: int,
+    _: None = Depends(require_server_key),
+    db: Session = Depends(get_db),
+):
+    """Plugin signals that the disconnected player has reconnected; resumes live play."""
+    duel = get_duel_or_404(duel_id, db)
+    if duel.status != "paused":
+        raise HTTPException(status_code=409, detail="Duel is not currently paused")
+    duel.status = "playing"
+    duel.paused_by_user_id = None
+    duel.pause_started_at = None
+    db.commit()
+    return {"status": "ok"}
+
+
+@app.post("/api/v1/server/duels/{duel_id}/cancel", tags=["CS2 Server"])
+async def server_cancel_duel(
+    duel_id: int,
+    data: dict,
+    _: None = Depends(require_server_key),
+    db: Session = Depends(get_db),
+):
+    """Plugin cancels a duel (no-show, both-disconnect, warmup-timeout).
+
+    Releases the server and unfreezes both players' frozen balances.
+    """
+    duel = get_duel_or_404(duel_id, db)
+    if duel.status in {"completed", "cancelled"}:
+        raise HTTPException(status_code=409, detail=f"Duel already in terminal status '{duel.status}'")
+    _cancel_duel_and_release(duel, db)
+    db.commit()
+    reason = normalize_string(data.get("reason", ""), field="reason", max_length=256)
+    return {"status": "ok", "reason": reason or "cancelled by server"}
+
+
+@app.post("/api/v1/server/duels/{duel_id}/complete", tags=["CS2 Server"])
+async def server_complete_duel(
+    duel_id: int,
+    data: dict,
+    _: None = Depends(require_server_key),
+    db: Session = Depends(get_db),
+):
+    """Plugin reports match end. Backend derives winner from scores (not from winner_steam_id),
+    validates score plausibility, runs payout, and releases the server.
+    """
+    duel = get_duel_or_404(duel_id, db)
+    if duel.status not in {"playing", "paused"}:
+        raise HTTPException(status_code=409, detail=f"Cannot complete duel from status '{duel.status}'")
+    if not duel.guest_id:
+        raise HTTPException(status_code=400, detail="Duel has no guest; cannot complete")
+
+    creator_score = parse_int_field(data.get("creator_score"), field="creator_score", minimum=0, maximum=999)
+    guest_score = parse_int_field(data.get("guest_score"), field="guest_score", minimum=0, maximum=999)
+
+    if not _validate_final_score(creator_score, guest_score):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Score {creator_score}:{guest_score} is not a valid CS2 match-ending state"
+        )
+
+    # Backend determines winner by round count; winner_steam_id from plugin is advisory only.
+    if creator_score > guest_score:
+        winner_id = duel.creator_id
+    else:
+        winner_id = duel.guest_id
+
+    demo_url_raw = data.get("demo_url")
+    if demo_url_raw:
+        duel.demo_url = validate_url_field(demo_url_raw, field="demo_url") or None
+
+    duel.creator_score = creator_score
+    duel.guest_score = guest_score
+    _execute_duel_payout(duel, winner_id, db)
+    db.commit()
+    return {"status": "ok", "winner_id": winner_id}
+
+
+# ==================== ROUNDS FEED (PUBLIC, FOR FRONTEND POLLING) ====================
+
+@app.get("/api/v1/duels/{duel_id}/rounds", response_model=list[DuelRoundEventResponse], tags=["Matchmaking"])
+async def get_duel_rounds(duel_id: int, db: Session = Depends(get_db)):
+    """Return per-round events for live score feed (polled by frontend during playing/paused states)."""
+    get_duel_or_404(duel_id, db)
+    return db.query(DuelRoundEvent).filter(
+        DuelRoundEvent.duel_id == duel_id
+    ).order_by(DuelRoundEvent.round_number.asc()).all()
+
+
+
 
 @app.get("/api/main", response_model=MainPayloadResponse, tags=["Public Content Engine"])
 async def get_landing_page_payload(request: Request, db: Session = Depends(get_db)):
@@ -1111,7 +1609,8 @@ async def get_landing_page_payload(request: Request, db: Session = Depends(get_d
     if current_user:
         my_duels = db.query(Duel).filter(((Duel.creator_id == current_user.id) | (Duel.guest_id == current_user.id)),
                                          Duel.status.in_(
-                                             ['waiting', 'ready', 'playing', 'processing', 'disputed'])).all()
+                                             ['waiting', 'ready', 'playing', 'processing', 'disputed',
+                                              'warmup', 'paused', 'reserving'])).all()
         for d in my_duels:
             creator = db.query(User).filter(User.id == d.creator_id).first()
             guest = db.query(User).filter(User.id == d.guest_id).first() if d.guest_id else None

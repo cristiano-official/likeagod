@@ -77,10 +77,14 @@
   "statuses": {
     "waiting": "En espera",
     "ready": "Listo",
+    "reserving": "Reservando servidor",
+    "warmup": "Calentamiento",
     "playing": "Jugando",
+    "paused": "Pausado",
     "processing": "Procesando",
     "disputed": "En disputa",
-    "completed": "Completado"
+    "completed": "Completado",
+    "cancelled": "Cancelado"
   },
   "footer": {
     "description": "Duelos por dinero para CS2 con interfaz oscura, lógica de escrow y despliegue manual listo para producción.",
@@ -180,6 +184,25 @@
       "map": "Mapa",
       "creatorShare": "Parte del creador",
       "guestShare": "Parte del invitado"
+    },
+    "warmup": {
+      "countdown": "Fin del calentamiento en",
+      "connect": "Conectar al servidor",
+      "creatorConnected": "Creador conectado",
+      "guestConnected": "Invitado conectado",
+      "creatorWaiting": "Creador esperando",
+      "guestWaiting": "Invitado esperando",
+      "title": "Fase de calentamiento",
+      "subtitle": "Ambos jugadores deben conectarse antes de que termine el calentamiento."
+    },
+    "live": {
+      "score": "Marcador",
+      "round": "Ronda",
+      "roundHistory": "Historial de rondas"
+    },
+    "paused": {
+      "title": "Partida pausada",
+      "subtitle": "Esperando reconexión…"
     },
     "actions": {
       "title": "Acciones",
