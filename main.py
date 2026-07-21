@@ -71,8 +71,7 @@ LANGUAGE_ALLOWLIST = {"en", "ru", "es", "zh", "de"}
 MAP_ALLOWLIST = {"aim_redline", "aim_ag_texture", "awp_india"}
 PAYMENT_METHOD_TYPES = {"deposit", "withdraw"}
 INSECURE_SECRET_MARKERS = {
-    "123456:AA....",
-    "0eb484ec834db43b23888c5f5be01103680db120b491af1379c1f30dc1f0d211",
+    "123456:aa....",
     "super_secret_token_for_cs2_server",
     "your_merchant_id",
     "your_secret_1",
@@ -558,9 +557,12 @@ async def auth_steam_callback(request: Request, db: Session = Depends(get_db)):
     if not db_user:
         avatar_url = ""
         if STEAM_API_KEY:
-            url = f"https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={STEAM_API_KEY}&steamids={steam_id}"
             try:
-                r = requests.get(url, timeout=5)
+                r = requests.get(
+                    "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/",
+                    params={"key": STEAM_API_KEY, "steamids": steam_id},
+                    timeout=5,
+                )
                 player_payload = r.json()
                 avatar_url = player_payload["response"]["players"][0]["avatarfull"]
             except (KeyError, IndexError, ValueError, requests.RequestException):
@@ -624,7 +626,7 @@ async def update_profile(data: dict, current_user: User = Depends(require_auth),
             status_code=409, detail="Username occupied")
         current_user.username = name
     current_user.bio = normalize_string(data.get("bio", current_user.bio), field="bio", max_length=MAX_BIO_LENGTH)
-    country = normalize_string(data.get("country", current_user.country), field="country", max_length=5, allow_empty=False).upper()
+    country = normalize_string(data.get("country", current_user.country or "US"), field="country", max_length=5, allow_empty=False).upper()
     if not COUNTRY_RE.fullmatch(country):
         raise HTTPException(status_code=400, detail="Invalid country code")
     current_user.country = country
@@ -890,9 +892,10 @@ async def create_deposit(data: dict, current_user: User = Depends(require_auth),
                     raise HTTPException(status_code=502, detail="Payment gateway unavailable")
                 invoice = res_data["result"]
 
+                invoice_url = validate_url_field(invoice.get("bot_invoice_url"), field="bot_invoice_url", allow_empty=False)
                 tx = TransactionHistory(user_id=current_user.id, amount=amount, currency="USDT", type="deposit",
                                         status="pending", payment_id=str(invoice["invoice_id"]),
-                                        address=str(invoice["bot_invoice_url"])[:MAX_URL_LENGTH])
+                                        address=invoice_url)
                 db.add(tx)
                 db.commit()
                 return {"pay_url": invoice["bot_invoice_url"]}
@@ -1132,9 +1135,7 @@ async def create_withdrawal(data: dict, current_user: User = Depends(require_aut
     # Очищаем от собачки, если ввели @username
     tg_identifier = raw_tg.replace("@", "")
 
-    if not tg_identifier:
-        raise HTTPException(status_code=400, detail="Telegram ID or Username is required.")
-    if not (tg_identifier.isdigit() or TELEGRAM_USERNAME_RE.fullmatch(tg_identifier)):
+    if not tg_identifier or not (tg_identifier.isdigit() or TELEGRAM_USERNAME_RE.fullmatch(tg_identifier)):
         raise HTTPException(status_code=400, detail="Telegram ID or Username is invalid.")
 
     method = db.query(PaymentMethod).filter(PaymentMethod.id == method_id, PaymentMethod.type == 'withdraw',
