@@ -226,6 +226,14 @@
     "guestWaiting": "等待对手",
     "slotOpen": "空位开放",
     "invalidId": "页面 URL 中缺少 duel id。",
+    "private": {
+      "badge": "私人对局",
+      "noElo": "这是私人对局——不影响 ELO 或统计数据。",
+      "inviteLabel": "邀请链接",
+      "copyLink": "复制邀请链接",
+      "copied": "已复制！",
+      "toggle": "私人对局"
+    },
     "toasts": {
       "requestSent": "申请已发送。",
       "cancelled": "对局已取消，创建者资金已退回。",
@@ -371,6 +379,7 @@
       "title": "平台佣金",
       "subtitle": "该值用于对局结算时的奖金分配。",
       "label": "佣金百分比",
+      "privateLabel": "私人对局佣金百分比",
       "submit": "保存佣金"
     },
     "errors": {

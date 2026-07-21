@@ -226,6 +226,14 @@
     "guestWaiting": "Waiting for opponent",
     "slotOpen": "Open slot",
     "invalidId": "Missing duel id in the page URL.",
+    "private": {
+      "badge": "Private match",
+      "noElo": "This is a private match — no ELO or stat changes apply.",
+      "inviteLabel": "Invite link",
+      "copyLink": "Copy invite link",
+      "copied": "Link copied!",
+      "toggle": "Private duel"
+    },
     "toasts": {
       "requestSent": "Join request sent.",
       "cancelled": "Duel cancelled and creator funds returned.",
@@ -371,6 +379,7 @@
       "title": "Platform commission",
       "subtitle": "The payout engine uses this value for duel settlement.",
       "label": "Commission percent",
+      "privateLabel": "Private duel commission percent",
       "submit": "Save commission"
     },
     "errors": {

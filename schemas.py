@@ -125,6 +125,8 @@ class DuelDetailsResponse(BaseModel):
     status: str
     creator_share: float
     guest_share: float
+    is_private: bool = False
+    invite_token: Optional[str] = None
     # Match-orchestration fields
     game_server_id: Optional[int] = None
     connect_url: Optional[str] = None
@@ -216,6 +218,7 @@ class ActiveDuelPayload(BaseModel):
 class MainPayloadResponse(BaseModel):
     news: List[NewsResponse]
     commission_percent: float
+    private_commission_percent: float = 10.0
     authenticated: bool
     user: Optional[MainUserPayload] = None
     stats: Optional[MainStatsPayload] = None

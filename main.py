@@ -194,6 +194,20 @@ try:
         _mig_db.rollback()
         if "duplicate column" not in str(_mig_exc).lower() and "already exists" not in str(_mig_exc).lower():
             LOGGER.warning("Migration warning for maintenance_mode column: %s", _mig_exc)
+    try:
+        _mig_db.execute(_sql_text("ALTER TABLE platform_settings ADD COLUMN private_commission_percent REAL DEFAULT 10.0"))
+        _mig_db.commit()
+    except Exception as _mig_exc:
+        _mig_db.rollback()
+        if "duplicate column" not in str(_mig_exc).lower() and "already exists" not in str(_mig_exc).lower():
+            LOGGER.warning("Migration warning for private_commission_percent column: %s", _mig_exc)
+    try:
+        _mig_db.execute(_sql_text("ALTER TABLE duels ADD COLUMN invite_token TEXT UNIQUE"))
+        _mig_db.commit()
+    except Exception as _mig_exc:
+        _mig_db.rollback()
+        if "duplicate column" not in str(_mig_exc).lower() and "already exists" not in str(_mig_exc).lower():
+            LOGGER.warning("Migration warning for invite_token column: %s", _mig_exc)
 finally:
     _mig_db.close()
 
@@ -557,6 +571,11 @@ def get_current_commission(db: Session) -> float:
     return settings.commission_percent if settings else 10.0
 
 
+def get_current_private_commission(db: Session) -> float:
+    settings = db.query(PlatformSettings).first()
+    return settings.private_commission_percent if settings and settings.private_commission_percent is not None else 10.0
+
+
 def get_maintenance_mode(db: Session) -> bool:
     settings = db.query(PlatformSettings).first()
     return bool(settings.maintenance_mode) if settings and settings.maintenance_mode is not None else False
@@ -627,12 +646,18 @@ def _execute_duel_payout(duel: Duel, winner_id: int, db: Session) -> None:
 
     Reused by both the user-facing confirm endpoint and the CS2 server
     complete endpoint. Caller is responsible for committing.
+
+    For private duels: uses private_commission_percent, skips ELO and all
+    stat changes (duels, wins, kills, deaths are not incremented).
     """
     creator_stats = db.query(UserStats).filter(UserStats.user_id == duel.creator_id).first()
     guest_stats = db.query(UserStats).filter(UserStats.user_id == duel.guest_id).first() if duel.guest_id else None
     winner_stats = creator_stats if winner_id == duel.creator_id else guest_stats
     loser_stats = guest_stats if winner_id == duel.creator_id else creator_stats
-    commission_percent = get_current_commission(db)
+    if duel.is_private:
+        commission_percent = get_current_private_commission(db)
+    else:
+        commission_percent = get_current_commission(db)
     payout_amount = round(duel.total_bank * (1 - commission_percent / 100), 2)
 
     if creator_stats:
@@ -641,14 +666,16 @@ def _execute_duel_payout(duel: Duel, winner_id: int, db: Session) -> None:
         guest_stats.frozen_balance = round(max(0.0, guest_stats.frozen_balance - duel.guest_share), 2)
     if winner_stats:
         winner_stats.balance = round(winner_stats.balance + payout_amount, 2)
-        winner_stats.wins += 1
-        winner_stats.elo += 20
-    if loser_stats:
-        loser_stats.elo = max(700, loser_stats.elo - 20)
-    if creator_stats:
-        creator_stats.duels += 1
-    if guest_stats:
-        guest_stats.duels += 1
+    if not duel.is_private:
+        if winner_stats:
+            winner_stats.wins += 1
+            winner_stats.elo += 20
+        if loser_stats:
+            loser_stats.elo = max(700, loser_stats.elo - 20)
+        if creator_stats:
+            creator_stats.duels += 1
+        if guest_stats:
+            guest_stats.duels += 1
     duel.winner_id = winner_id
     duel.status = "completed"
     duel.ended_at = datetime.utcnow()
@@ -692,7 +719,7 @@ def _check_and_expire_reservations(db: Session) -> None:
         db.commit()
 
 
-def serialize_duel(duel: Duel, db: Session) -> dict:
+def serialize_duel(duel: Duel, db: Session, current_user_id: Optional[int] = None) -> dict:
     creator = db.query(User).filter(User.id == duel.creator_id).first()
     creator_stats = get_user_stats_or_404(duel.creator_id, db)
     guest = db.query(User).filter(User.id == duel.guest_id).first() if duel.guest_id else None
@@ -702,6 +729,8 @@ def serialize_duel(duel: Duel, db: Session) -> dict:
         server = db.query(GameServer).filter(GameServer.id == duel.game_server_id).first()
         if server:
             connect_url = server.connect_url
+    # Only expose invite_token to the duel creator
+    invite_token = duel.invite_token if (duel.is_private and current_user_id == duel.creator_id) else None
     return {
         "id": duel.id,
         "creator_id": duel.creator_id,
@@ -719,6 +748,8 @@ def serialize_duel(duel: Duel, db: Session) -> dict:
         "status": duel.status,
         "creator_share": duel.creator_share,
         "guest_share": duel.guest_share,
+        "is_private": bool(duel.is_private),
+        "invite_token": invite_token,
         "game_server_id": duel.game_server_id,
         "connect_url": connect_url,
         "warmup_started_at": duel.warmup_started_at,
@@ -901,18 +932,28 @@ async def create_duel(data: dict, current_user: User = Depends(require_auth), db
         raise HTTPException(status_code=400, detail="Map is not supported")
     is_private = parse_bool_field(data.get("is_private", False))
 
-    max_c_share, _ = calculate_shares(st.elo, 700 + (min_rank * 100), bank)
-    if not is_private:
-        check_wager_limit(st.wagered_amount, max_c_share)
-    if st.balance < max_c_share: raise HTTPException(status_code=400, detail="Insufficient margin balance")
+    if is_private:
+        # Fixed 50/50 split for private duels; no wager-limit enforcement
+        creator_share = round(bank / 2, 2)
+        guest_share = round(bank - creator_share, 2)
+    else:
+        creator_share, _ = calculate_shares(st.elo, 700 + (min_rank * 100), bank)
+        guest_share = round(bank - creator_share, 2)
+        check_wager_limit(st.wagered_amount, creator_share)
+    if st.balance < creator_share: raise HTTPException(status_code=400, detail="Insufficient margin balance")
 
-    st.balance, st.frozen_balance = round(st.balance - max_c_share, 2), round(st.frozen_balance + max_c_share, 2)
+    invite_token = secrets.token_urlsafe(24) if is_private else None
+    st.balance, st.frozen_balance = round(st.balance - creator_share, 2), round(st.frozen_balance + creator_share, 2)
     duel = Duel(creator_id=current_user.id, map_name=map_name, total_bank=bank,
-                creator_share=max_c_share, guest_share=round(bank - max_c_share, 2),
-                min_rank=min_rank, max_rank=max_rank, is_private=is_private)
+                creator_share=creator_share, guest_share=guest_share,
+                min_rank=min_rank, max_rank=max_rank, is_private=is_private,
+                invite_token=invite_token)
     db.add(duel)
     db.commit()
-    return {"status": "success", "duel_id": duel.id}
+    result = {"status": "success", "duel_id": duel.id}
+    if invite_token:
+        result["invite_token"] = invite_token
+    return result
 
 
 @app.get("/api/v1/duels", response_model=list[DuelLobbyResponse], tags=["Matchmaking"])
@@ -963,11 +1004,23 @@ async def get_my_duel_history(current_user: User = Depends(require_auth), db: Se
     return result
 
 
+@app.get("/api/v1/duels/by-invite/{invite_token}", response_model=DuelDetailsResponse, tags=["Matchmaking"])
+async def get_duel_by_invite(invite_token: str, request: Request, db: Session = Depends(get_db)):
+    """Resolve an invite token to a duel's public details. No auth required."""
+    duel = db.query(Duel).filter(Duel.invite_token == invite_token).first()
+    if not duel:
+        raise HTTPException(status_code=404, detail="Invite link is invalid or expired")
+    _check_and_expire_reservations(db)
+    current_user = get_current_user(request, db)
+    return serialize_duel(duel, db, current_user_id=current_user.id if current_user else None)
+
+
 @app.get("/api/v1/duels/{duel_id}", response_model=DuelDetailsResponse, tags=["Matchmaking"])
-async def get_duel_details(duel_id: int, db: Session = Depends(get_db)):
+async def get_duel_details(duel_id: int, request: Request, db: Session = Depends(get_db)):
     _check_and_expire_reservations(db)
     duel = get_duel_or_404(duel_id, db)
-    return serialize_duel(duel, db)
+    current_user = get_current_user(request, db)
+    return serialize_duel(duel, db, current_user_id=current_user.id if current_user else None)
 
 
 @app.post("/api/v1/duels/{duel_id}/request", tags=["Matchmaking"])
@@ -1352,8 +1405,15 @@ async def admin_update_commission(data: dict, current_user: User = Depends(requi
         settings = PlatformSettings(commission_percent=commission_percent)
         db.add(settings)
     settings.commission_percent = commission_percent
+    if "private_commission_percent" in data:
+        private_commission_percent = parse_float_field(data["private_commission_percent"], field="private_commission_percent", minimum=0, maximum=100)
+        settings.private_commission_percent = private_commission_percent
     db.commit()
-    return {"status": "success", "commission_percent": settings.commission_percent}
+    return {
+        "status": "success",
+        "commission_percent": settings.commission_percent,
+        "private_commission_percent": settings.private_commission_percent if settings.private_commission_percent is not None else 10.0,
+    }
 
 
 @app.post("/api/v1/admin/maintenance", tags=["Admin"])
@@ -1723,6 +1783,7 @@ async def get_landing_page_payload(request: Request, db: Session = Depends(get_d
         {"id": n.id, "title": n.title, "image_path": n.image_path, "btn_text": n.btn_text, "btn_url": n.btn_url,
          "created_at": n.created_at} for n in news]
     commission = get_current_commission(db)
+    private_commission = get_current_private_commission(db)
 
     my_duels_payload = []
     if current_user:
@@ -1737,7 +1798,8 @@ async def get_landing_page_payload(request: Request, db: Session = Depends(get_d
                                      "creator_name": creator.username if creator else "Unknown",
                                      "guest_name": guest.username if guest else "Waiting..."})
 
-    response = {"news": news_payload, "commission_percent": commission, "authenticated": False, "user": None,
+    response = {"news": news_payload, "commission_percent": commission, "private_commission_percent": private_commission,
+                "authenticated": False, "user": None,
                 "stats": None, "my_duels": my_duels_payload, "maintenance_mode": get_maintenance_mode(db)}
     if current_user:
         st = db.query(UserStats).filter(UserStats.user_id == current_user.id).first()

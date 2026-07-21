@@ -226,6 +226,14 @@
     "guestWaiting": "Esperando rival",
     "slotOpen": "Espacio libre",
     "invalidId": "Falta el id del duelo en la URL.",
+    "private": {
+      "badge": "Partida privada",
+      "noElo": "Esta es una partida privada — no se aplican cambios de ELO ni estadísticas.",
+      "inviteLabel": "Enlace de invitación",
+      "copyLink": "Copiar enlace",
+      "copied": "¡Copiado!",
+      "toggle": "Duelo privado"
+    },
     "toasts": {
       "requestSent": "Solicitud enviada.",
       "cancelled": "Duelo cancelado y fondos devueltos.",
@@ -371,6 +379,7 @@
       "title": "Comisión de plataforma",
       "subtitle": "Este valor se usa para calcular pagos de duelos.",
       "label": "Porcentaje de comisión",
+      "privateLabel": "Comisión para duelos privados (%)",
       "submit": "Guardar comisión"
     },
     "errors": {
