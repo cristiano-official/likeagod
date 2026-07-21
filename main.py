@@ -10,7 +10,7 @@ import secrets
 import time
 from collections import defaultdict, deque
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import urlsplit
 
@@ -84,6 +84,9 @@ USERNAME_RE = re.compile(r"^[A-Za-z0-9]{3,32}$")
 COUNTRY_RE = re.compile(r"^[A-Z]{2,5}$")
 TELEGRAM_USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{5,32}$")
 ADMIN_FRONTEND_PATH_RE = re.compile(r"^/[a-f0-9]{16,128}$")
+DEFAULT_COUNTRY = (os.getenv("DEFAULT_COUNTRY", "US").strip().upper() or "US")
+if not COUNTRY_RE.fullmatch(DEFAULT_COUNTRY):
+    DEFAULT_COUNTRY = "US"
 MAX_DUEL_BANK = 100000.0
 MAX_PAYMENT_AMOUNT = 100000.0
 MAX_ADMIN_BALANCE_ADJUSTMENT = 1000000.0
@@ -259,13 +262,20 @@ def validate_url_field(value, *, field: str, allow_empty: bool = True) -> Option
     return text
 
 
+def validate_url_host(url: str, *, field: str, allowed_hosts: tuple[str, ...]) -> str:
+    parts = urlsplit(url)
+    if parts.netloc and parts.netloc not in allowed_hosts:
+        raise HTTPException(status_code=502, detail=f"{field} host is invalid")
+    return url
+
+
 def ensure_payment_gateway_configured(*required_values: Optional[str]):
     if not all(required_values):
         raise HTTPException(status_code=503, detail="Payment gateway is temporarily unavailable")
 
 
 def issue_access_token(user_id: int) -> str:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     return jwt.encode(
         {"user_id": user_id, "iat": now, "exp": now + SESSION_TTL, "jti": secrets.token_hex(16)},
         SECRET_KEY,
@@ -626,7 +636,7 @@ async def update_profile(data: dict, current_user: User = Depends(require_auth),
             status_code=409, detail="Username occupied")
         current_user.username = name
     current_user.bio = normalize_string(data.get("bio", current_user.bio), field="bio", max_length=MAX_BIO_LENGTH)
-    country = normalize_string(data.get("country", current_user.country or "US"), field="country", max_length=5, allow_empty=False).upper()
+    country = normalize_string(data.get("country", current_user.country or DEFAULT_COUNTRY), field="country", max_length=5, allow_empty=False).upper()
     if not COUNTRY_RE.fullmatch(country):
         raise HTTPException(status_code=400, detail="Invalid country code")
     current_user.country = country
@@ -893,6 +903,7 @@ async def create_deposit(data: dict, current_user: User = Depends(require_auth),
                 invoice = res_data["result"]
 
                 invoice_url = validate_url_field(invoice.get("bot_invoice_url"), field="bot_invoice_url", allow_empty=False)
+                invoice_url = validate_url_host(invoice_url, field="bot_invoice_url", allowed_hosts=("pay.crypt.bot",))
                 tx = TransactionHistory(user_id=current_user.id, amount=amount, currency="USDT", type="deposit",
                                         status="pending", payment_id=str(invoice["invoice_id"]),
                                         address=invoice_url)
