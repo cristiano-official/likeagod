@@ -1,15 +1,25 @@
-import os
-import requests
-import jwt
-import random
 import hashlib
-import httpx
+import hmac
+import json
+import logging
+import math
+import os
+import random
+import re
+import secrets
+import time
+from collections import defaultdict, deque
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
+from urllib.parse import urlsplit
 
-from fastapi import FastAPI, Request, HTTPException, Depends
-from fastapi.responses import RedirectResponse
+import httpx
+import jwt
+import requests
+
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -36,6 +46,52 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
+LOGGER = logging.getLogger("likeagod.security")
+
+APP_ENV = os.getenv("APP_ENV", os.getenv("ENVIRONMENT", "development")).strip().lower() or "development"
+IS_PRODUCTION = APP_ENV in {"prod", "production"}
+SESSION_TTL = timedelta(days=7)
+SESSION_MAX_AGE = int(SESSION_TTL.total_seconds())
+COOKIE_DOMAIN = (os.getenv("COOKIE_DOMAIN") or ("likeagod.net" if IS_PRODUCTION else "")).strip() or None
+COOKIE_SAMESITE = (os.getenv("COOKIE_SAMESITE", "lax").strip().lower() or "lax")
+if COOKIE_SAMESITE not in {"lax", "strict", "none"}:
+    COOKIE_SAMESITE = "lax"
+COOKIE_SECURE = (os.getenv("COOKIE_SECURE", "1" if IS_PRODUCTION else "0").strip().lower() not in {"0", "false", "no"})
+STEAM_RETURN_TO = os.getenv(
+    "STEAM_RETURN_TO",
+    "https://likeagod.net/auth/steam/callback" if IS_PRODUCTION else "http://localhost/auth/steam/callback"
+).strip()
+DEFAULT_CORS_ORIGINS = "https://likeagod.net,https://www.likeagod.net,http://localhost,http://127.0.0.1:8000"
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", DEFAULT_CORS_ORIGINS).split(",") if origin.strip()]
+ADMIN_FRONTEND_PATH = "/" + (os.getenv("ADMIN_FRONTEND_PATH", "").strip().strip("/")) if os.getenv("ADMIN_FRONTEND_PATH") else None
+if ADMIN_FRONTEND_PATH == "/admin":
+    ADMIN_FRONTEND_PATH = None
+
+LANGUAGE_ALLOWLIST = {"en", "ru", "es", "zh", "de"}
+MAP_ALLOWLIST = {"aim_redline", "aim_ag_texture", "awp_india"}
+PAYMENT_METHOD_TYPES = {"deposit", "withdraw"}
+INSECURE_SECRET_MARKERS = {
+    "123456:aa....",
+    "0eb484ec834db43b23888c5f5be01103680db120b491af1379c1f30dc1f0d211",
+    "super_secret_token_for_cs2_server",
+    "your_merchant_id",
+    "your_secret_1",
+    "your_secret_2",
+    "changeme",
+    "secret",
+    "test",
+}
+USERNAME_RE = re.compile(r"^[A-Za-z0-9]{3,32}$")
+COUNTRY_RE = re.compile(r"^[A-Z]{2,5}$")
+TELEGRAM_USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{5,32}$")
+ADMIN_FRONTEND_PATH_RE = re.compile(r"^/[a-f0-9]{16,128}$")
+MAX_DUEL_BANK = 100000.0
+MAX_PAYMENT_AMOUNT = 100000.0
+MAX_ADMIN_BALANCE_ADJUSTMENT = 1000000.0
+MAX_BIO_LENGTH = 150
+MAX_URL_LENGTH = 2048
+RATE_LIMIT_BUCKETS: dict[str, deque[float]] = defaultdict(deque)
+
 
 app = FastAPI(
     title="LikeGod Esports Tournament Platform Core API",
@@ -47,24 +103,71 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://likeagod.net", "http://localhost", "http://127.0.0.1:8000"],
+    allow_origins=CORS_ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Accept", "Content-Type", "X-CSRF-Token", "X-Requested-With"],
 )
 
 steam_login = SteamSignIn()
-SECRET_KEY = os.getenv('SECRET_KEY', '0eb484ec834db43b23888c5f5be01103680db120b491af1379c1f30dc1f0d211')
 ALGORITHM = "HS256"
-STEAM_API_KEY = os.getenv('STEAM_API_KEY', '')
-SERVER_API_KEY = os.getenv('SERVER_API_KEY', 'super_secret_token_for_cs2_server')
-
-CRYPTO_PAY_TOKEN = os.getenv("CRYPTO_PAY_TOKEN", "123456:AA....")
 CRYPTO_PAY_API_URL = "https://pay.crypt.bot/api"
 
-AAIO_MERCHANT_ID = os.getenv("AAIO_MERCHANT_ID", "your_merchant_id")
-AAIO_SECRET_1 = os.getenv("AAIO_SECRET_1", "your_secret_1")
-AAIO_SECRET_2 = os.getenv("AAIO_SECRET_2", "your_secret_2")
+
+def is_secret_strong(value: str, min_length: int) -> bool:
+    if len(value) < min_length or value.lower() in INSECURE_SECRET_MARKERS:
+        return False
+    classes = (
+        any(ch.islower() for ch in value),
+        any(ch.isupper() for ch in value),
+        any(ch.isdigit() for ch in value),
+        any(not ch.isalnum() for ch in value),
+    )
+    return sum(classes) >= 3 and len(set(value)) >= min(12, max(6, min_length // 2))
+
+
+def read_secret(name: str, *, min_length: int, required_in_production: bool, allow_dev_fallback: bool = False) -> Optional[str]:
+    value = os.getenv(name, "").strip()
+    if not value:
+        if allow_dev_fallback and not IS_PRODUCTION:
+            return secrets.token_urlsafe(max(min_length, 32))
+        if required_in_production:
+            raise RuntimeError(f"{name} must be configured via environment in production")
+        return None
+    if not is_secret_strong(value, min_length):
+        if required_in_production:
+            raise RuntimeError(f"{name} is too weak for production; provide a longer high-entropy value")
+        if allow_dev_fallback:
+            return secrets.token_urlsafe(max(min_length, 32))
+    return value
+
+
+def read_required_setting(name: str, *, required_in_production: bool, placeholder_values: tuple[str, ...] = ()) -> Optional[str]:
+    value = os.getenv(name, "").strip()
+    if not value:
+        if required_in_production:
+            raise RuntimeError(f"{name} must be configured via environment in production")
+        return None
+    if value.lower() in {placeholder.lower() for placeholder in placeholder_values} and required_in_production:
+        raise RuntimeError(f"{name} must not use a placeholder value in production")
+    return value
+
+
+def validate_runtime_configuration():
+    if ADMIN_FRONTEND_PATH and not ADMIN_FRONTEND_PATH_RE.fullmatch(ADMIN_FRONTEND_PATH):
+        raise RuntimeError("ADMIN_FRONTEND_PATH must be a hex-like path such as /0123abcdef456789")
+
+
+SECRET_KEY = read_secret("SECRET_KEY", min_length=32, required_in_production=True, allow_dev_fallback=True)
+STEAM_API_KEY = read_required_setting("STEAM_API_KEY", required_in_production=IS_PRODUCTION)
+SERVER_API_KEY = read_secret("SERVER_API_KEY", min_length=24, required_in_production=IS_PRODUCTION)
+CRYPTO_PAY_TOKEN = read_secret("CRYPTO_PAY_TOKEN", min_length=24, required_in_production=IS_PRODUCTION)
+AAIO_MERCHANT_ID = read_required_setting(
+    "AAIO_MERCHANT_ID", required_in_production=IS_PRODUCTION, placeholder_values=("your_merchant_id",)
+)
+AAIO_SECRET_1 = read_secret("AAIO_SECRET_1", min_length=24, required_in_production=IS_PRODUCTION)
+AAIO_SECRET_2 = read_secret("AAIO_SECRET_2", min_length=24, required_in_production=IS_PRODUCTION)
+validate_runtime_configuration()
 
 Base.metadata.create_all(bind=engine)
 
@@ -93,6 +196,241 @@ finally:
 
 # ==================== UTILS & CORE MIDDLEWARES ====================
 
+
+def normalize_string(value, *, field: str, max_length: int, allow_empty: bool = True) -> str:
+    text = str(value or "").strip()
+    if not allow_empty and not text:
+        raise HTTPException(status_code=400, detail=f"{field} is required")
+    if len(text) > max_length:
+        raise HTTPException(status_code=400, detail=f"{field} is too long")
+    return text
+
+
+def parse_float_field(value, *, field: str, minimum: float | None = None, maximum: float | None = None) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail=f"{field} must be a number")
+    if not math.isfinite(parsed):
+        raise HTTPException(status_code=400, detail=f"{field} must be finite")
+    if minimum is not None and parsed < minimum:
+        raise HTTPException(status_code=400, detail=f"{field} is below the allowed minimum")
+    if maximum is not None and parsed > maximum:
+        raise HTTPException(status_code=400, detail=f"{field} exceeds the allowed maximum")
+    return parsed
+
+
+def parse_int_field(value, *, field: str, minimum: int | None = None, maximum: int | None = None) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail=f"{field} must be an integer")
+    if minimum is not None and parsed < minimum:
+        raise HTTPException(status_code=400, detail=f"{field} is below the allowed minimum")
+    if maximum is not None and parsed > maximum:
+        raise HTTPException(status_code=400, detail=f"{field} exceeds the allowed maximum")
+    return parsed
+
+
+def parse_bool_field(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+    raise HTTPException(status_code=400, detail="Boolean field contains an invalid value")
+
+
+def validate_url_field(value, *, field: str, allow_empty: bool = True) -> Optional[str]:
+    text = normalize_string(value, field=field, max_length=MAX_URL_LENGTH, allow_empty=allow_empty)
+    if not text:
+        return None
+    parts = urlsplit(text)
+    if parts.scheme and parts.scheme not in {"http", "https"}:
+        raise HTTPException(status_code=400, detail=f"{field} must use http, https, or a relative path")
+    if parts.scheme and not parts.netloc:
+        raise HTTPException(status_code=400, detail=f"{field} is invalid")
+    if text.lower().startswith("javascript:"):
+        raise HTTPException(status_code=400, detail=f"{field} is invalid")
+    return text
+
+
+def ensure_payment_gateway_configured(*required_values: Optional[str]):
+    if not all(required_values):
+        raise HTTPException(status_code=503, detail="Payment gateway is temporarily unavailable")
+
+
+def issue_access_token(user_id: int) -> str:
+    now = datetime.utcnow()
+    return jwt.encode(
+        {"user_id": user_id, "iat": now, "exp": now + SESSION_TTL, "jti": secrets.token_hex(16)},
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+
+def generate_csrf_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def set_session_cookies(response: RedirectResponse, user_id: int):
+    response.set_cookie(
+        "access_token",
+        issue_access_token(user_id),
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        domain=COOKIE_DOMAIN,
+        path="/",
+        max_age=SESSION_MAX_AGE,
+    )
+    response.set_cookie(
+        "csrf_token",
+        generate_csrf_token(),
+        httponly=False,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        domain=COOKIE_DOMAIN,
+        path="/",
+        max_age=SESSION_MAX_AGE,
+    )
+
+
+def clear_session_cookies(response: RedirectResponse):
+    response.delete_cookie("access_token", domain=COOKIE_DOMAIN, path="/")
+    response.delete_cookie("csrf_token", domain=COOKIE_DOMAIN, path="/")
+
+
+def resolve_current_user(request: Request, db: Session) -> Optional[User]:
+    token = request.cookies.get("access_token")
+    if not token:
+        return None
+    user_id = decode_jwt_token(token)
+    if not user_id:
+        return None
+    return db.query(User).filter(User.id == user_id).first()
+
+
+def client_rate_limit_key(request: Request) -> str:
+    ip = request.client.host if request.client else "unknown"
+    token_user = decode_jwt_token(request.cookies.get("access_token", "")) or "anon"
+    return f"{token_user}:{ip}"
+
+
+def get_rate_limit_rule(request: Request) -> Optional[tuple[str, int, int]]:
+    path = request.url.path
+    if path in {"/auth/steam", "/auth/steam/callback"}:
+        return "auth", 60, 20
+    if path in {"/api/v1/payments/deposit", "/api/v1/payments/withdraw", "/api/v1/payments/cancel"}:
+        return "payments", 60, 10
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"} and (
+        path.startswith("/api/v1/admin/") or path == "/news/create" or path.startswith("/news/")
+    ):
+        return "admin", 60, 20
+    return None
+
+
+def is_csrf_exempt_path(path: str) -> bool:
+    return path == "/api/v1/payments/webhook"
+
+
+def verify_csrf(request: Request):
+    if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+        return
+    if is_csrf_exempt_path(request.url.path) or not request.cookies.get("access_token"):
+        return
+    csrf_cookie = request.cookies.get("csrf_token")
+    csrf_header = request.headers.get("x-csrf-token", "")
+    if not csrf_cookie or not csrf_header or not secrets.compare_digest(csrf_cookie, csrf_header):
+        raise HTTPException(status_code=403, detail="CSRF verification failed")
+
+
+def verify_crypto_pay_signature(request: Request, raw_body: bytes):
+    ensure_payment_gateway_configured(CRYPTO_PAY_TOKEN)
+    signature = request.headers.get("crypto-pay-api-signature", "").strip()
+    if not signature:
+        raise HTTPException(status_code=401, detail="Webhook signature missing")
+    expected_signature = hmac.new(CRYPTO_PAY_TOKEN.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected_signature):
+        raise HTTPException(status_code=401, detail="Webhook signature invalid")
+
+
+@app.middleware("http")
+async def security_controls(request: Request, call_next):
+    admin_paths = {"/admin"}
+    if ADMIN_FRONTEND_PATH:
+        admin_paths.add(ADMIN_FRONTEND_PATH)
+
+    if request.url.path in admin_paths:
+        db = session_local()
+        try:
+            current_user = resolve_current_user(request, db)
+        finally:
+            db.close()
+        if not current_user or current_user.role != "admin":
+            return PlainTextResponse("Not Found", status_code=404)
+        if request.url.path != "/admin":
+            request.scope["path"] = "/admin"
+            request.scope["raw_path"] = b"/admin"
+
+    rule = get_rate_limit_rule(request)
+    if rule:
+        bucket, window_seconds, max_requests = rule
+        key = f"{bucket}:{client_rate_limit_key(request)}"
+        now = time.monotonic()
+        window = RATE_LIMIT_BUCKETS[key]
+        while window and now - window[0] >= window_seconds:
+            window.popleft()
+        if len(window) >= max_requests:
+            return JSONResponse(status_code=429, content={"detail": "Too many requests. Please retry later."})
+        window.append(now)
+
+    try:
+        verify_csrf(request)
+    except HTTPException as exc:
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "accelerometer=(), camera=(), geolocation=(), microphone=(), payment=(), usb=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'none'; "
+        "form-action 'self' https://steamcommunity.com; "
+        "img-src 'self' data: https:; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "connect-src 'self' https://pay.crypt.bot https://aaio.so https://api.steampowered.com https://steamcommunity.com;"
+    )
+
+    if request.cookies.get("access_token") and not request.cookies.get("csrf_token"):
+        response.set_cookie(
+            "csrf_token",
+            generate_csrf_token(),
+            httponly=False,
+            secure=COOKIE_SECURE,
+            samesite=COOKIE_SAMESITE,
+            domain=COOKIE_DOMAIN,
+            path="/",
+            max_age=SESSION_MAX_AGE,
+        )
+    return response
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    LOGGER.exception("Unhandled server error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
 def get_db():
     db = session_local()
     try:
@@ -105,16 +443,12 @@ def decode_jwt_token(token: str) -> Optional[int]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload.get('user_id')
-    except:
+    except jwt.PyJWTError:
         return None
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optional[User]:
-    token = request.cookies.get('access_token')
-    if not token:
-        return None
-    user_id = decode_jwt_token(token)
-    return db.query(User).filter(User.id == user_id).first()
+    return resolve_current_user(request, db)
 
 
 def require_auth(current_user: User = Depends(get_current_user)):
@@ -201,7 +535,8 @@ def serialize_duel(duel: Duel, db: Session) -> dict:
 
 
 def find_user_by_target(target: str, db: Session) -> User:
-    user = db.query(User).filter((User.username == target) | (User.steam_id == target)).first()
+    cleaned_target = normalize_string(target, field="target", max_length=64, allow_empty=False)
+    user = db.query(User).filter((User.username == cleaned_target) | (User.steam_id == cleaned_target)).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
@@ -211,8 +546,7 @@ def find_user_by_target(target: str, db: Session) -> User:
 
 @app.get("/auth/steam", tags=["Auth"])
 async def auth_steam():
-    return_to = 'https://likeagod.net/auth/steam/callback'
-    return RedirectResponse(f"https://steamcommunity.com/openid/login?{steam_login.ConstructURL(return_to)}")
+    return RedirectResponse(f"https://steamcommunity.com/openid/login?{steam_login.ConstructURL(STEAM_RETURN_TO)}")
 
 
 @app.get("/auth/steam/callback", tags=["Auth"])
@@ -222,13 +556,15 @@ async def auth_steam_callback(request: Request, db: Session = Depends(get_db)):
 
     db_user = db.query(User).filter(User.steam_id == str(steam_id)).first()
     if not db_user:
-        url = f"http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={STEAM_API_KEY}&steamids={steam_id}"
         avatar_url = ""
-        try:
-            r = requests.get(url, timeout=5).json()
-            avatar_url = r['response']['players'][0]['avatarfull']
-        except:
-            pass
+        if STEAM_API_KEY:
+            url = f"https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={STEAM_API_KEY}&steamids={steam_id}"
+            try:
+                r = requests.get(url, timeout=5)
+                player_payload = r.json()
+                avatar_url = player_payload["response"]["players"][0]["avatarfull"]
+            except (KeyError, IndexError, ValueError, requests.RequestException):
+                avatar_url = ""
 
         db_user = User(steam_id=str(steam_id), username=f"User_{random.randint(1000, 999999)}", avatar=avatar_url)
         db.add(db_user)
@@ -238,17 +574,14 @@ async def auth_steam_callback(request: Request, db: Session = Depends(get_db)):
         db.commit()
 
     response = RedirectResponse(url="/main")
-    response.set_cookie("access_token",
-                        jwt.encode({'user_id': db_user.id, 'exp': datetime.utcnow() + timedelta(days=7)}, SECRET_KEY,
-                                   algorithm=ALGORITHM), httponly=True, secure=True, samesite='lax',
-                        domain='likeagod.net')
+    set_session_cookies(response, db_user.id)
     return response
 
 
 @app.get("/auth/logout", tags=["Auth"])
 async def logout():
     response = RedirectResponse(url="/main")
-    response.delete_cookie("access_token", domain='likeagod.net')
+    clear_session_cookies(response)
     return response
 
 
@@ -284,23 +617,33 @@ async def get_my_info(current_user: User = Depends(require_auth), db: Session = 
 @app.post("/user/update", tags=["User Profile"])
 async def update_profile(data: dict, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
     if data.get('username'):
-        name = data.get('username')
-        if len(name) < 3 or not name.isalnum(): raise HTTPException(status_code=400,
-                                                                    detail="Invalid alphanumeric username")
+        name = normalize_string(data.get("username"), field="username", max_length=32, allow_empty=False)
+        if not USERNAME_RE.fullmatch(name):
+            raise HTTPException(status_code=400, detail="Invalid alphanumeric username")
         if db.query(User).filter(User.username == name, User.id != current_user.id).first(): raise HTTPException(
             status_code=409, detail="Username occupied")
         current_user.username = name
-    current_user.bio = str(data.get('bio', current_user.bio))[:150]
-    current_user.country = str(data.get('country', current_user.country))[:5].upper()
-    if data.get('language') in ['en', 'ru', 'es', 'zh', 'de']: current_user.language = data.get('language')
-    if data.get('theme') is not None: current_user.theme = int(data.get('theme'))
-    if data.get('effects') is not None: current_user.effects = bool(data.get('effects'))
+    current_user.bio = normalize_string(data.get("bio", current_user.bio), field="bio", max_length=MAX_BIO_LENGTH)
+    country = normalize_string(data.get("country", current_user.country), field="country", max_length=5, allow_empty=False).upper()
+    if not COUNTRY_RE.fullmatch(country):
+        raise HTTPException(status_code=400, detail="Invalid country code")
+    current_user.country = country
+    if data.get("language") is not None:
+        language = normalize_string(data.get("language"), field="language", max_length=5, allow_empty=False).lower()
+        if language not in LANGUAGE_ALLOWLIST:
+            raise HTTPException(status_code=400, detail="Unsupported language")
+        current_user.language = language
+    if data.get("theme") is not None:
+        current_user.theme = parse_int_field(data.get("theme"), field="theme", minimum=0, maximum=1)
+    if data.get("effects") is not None:
+        current_user.effects = parse_bool_field(data.get("effects"))
     db.commit()
     return {"status": "success"}
 
 
 @app.get("/user/by-name/{username}", response_model=ProfileResponse, tags=["User Profile"])
 async def get_public_profile(username: str, request: Request, db: Session = Depends(get_db)):
+    username = normalize_string(username, field="username", max_length=64, allow_empty=False)
     u = db.query(User).filter(User.username == username).first()
     if not u: raise HTTPException(status_code=404, detail="Profile not found")
     st = get_user_stats_or_404(u.id, db)
@@ -320,18 +663,25 @@ async def get_public_profile(username: str, request: Request, db: Session = Depe
 async def create_duel(data: dict, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
     check_active_match_existence(current_user.id, db)
     st = db.query(UserStats).filter(UserStats.user_id == current_user.id).first()
-    bank = float(data.get('total_bank', 0))
-    if bank <= 0: raise HTTPException(status_code=400, detail="Invalid prize bank")
+    bank = parse_float_field(data.get("total_bank", 0), field="total_bank", minimum=0.01, maximum=MAX_DUEL_BANK)
+    min_rank = parse_int_field(data.get("min_rank", 1), field="min_rank", minimum=1, maximum=10)
+    max_rank = parse_int_field(data.get("max_rank", 10), field="max_rank", minimum=1, maximum=10)
+    if min_rank > max_rank:
+        raise HTTPException(status_code=400, detail="Rank range is invalid")
+    map_name = normalize_string(data.get("map_name", "aim_redline"), field="map_name", max_length=32, allow_empty=False)
+    if map_name not in MAP_ALLOWLIST:
+        raise HTTPException(status_code=400, detail="Map is not supported")
+    is_private = parse_bool_field(data.get("is_private", False))
 
-    max_c_share, _ = calculate_shares(st.elo, 700 + (int(data.get('min_rank', 1)) * 100), bank)
-    if not bool(data.get('is_private')): check_wager_limit(st.wagered_amount, max_c_share)
+    max_c_share, _ = calculate_shares(st.elo, 700 + (min_rank * 100), bank)
+    if not is_private:
+        check_wager_limit(st.wagered_amount, max_c_share)
     if st.balance < max_c_share: raise HTTPException(status_code=400, detail="Insufficient margin balance")
 
     st.balance, st.frozen_balance = round(st.balance - max_c_share, 2), round(st.frozen_balance + max_c_share, 2)
-    duel = Duel(creator_id=current_user.id, map_name=data.get('map_name', 'aim_redline'), total_bank=bank,
+    duel = Duel(creator_id=current_user.id, map_name=map_name, total_bank=bank,
                 creator_share=max_c_share, guest_share=round(bank - max_c_share, 2),
-                min_rank=int(data.get('min_rank', 1)), max_rank=int(data.get('max_rank', 10)),
-                is_private=bool(data.get('is_private', False)))
+                min_rank=min_rank, max_rank=max_rank, is_private=is_private)
     db.add(duel)
     db.commit()
     return {"status": "success", "duel_id": duel.id}
@@ -493,13 +843,15 @@ async def dispute_duel(duel_id: int, current_user: User = Depends(require_auth),
 
 @app.get("/api/v1/payments/methods", response_model=list[PaymentMethodResponse], tags=["Payments"])
 async def get_payment_methods(type: str, db: Session = Depends(get_db)):
+    if type not in PAYMENT_METHOD_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported payment method type")
     return db.query(PaymentMethod).filter(PaymentMethod.type == type, PaymentMethod.is_active == True).all()
 
 
 @app.post("/api/v1/payments/deposit", tags=["Payments"])
 async def create_deposit(data: dict, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
-    amount = float(data.get("amount", 0))
-    method_id = int(data.get("method_id", 0))
+    amount = parse_float_field(data.get("amount", 0), field="amount", minimum=0.01, maximum=MAX_PAYMENT_AMOUNT)
+    method_id = parse_int_field(data.get("method_id", 0), field="method_id", minimum=1, maximum=1000000)
 
     existing_tx = db.query(TransactionHistory).filter(
         TransactionHistory.user_id == current_user.id,
@@ -518,6 +870,7 @@ async def create_deposit(data: dict, current_user: User = Depends(require_auth),
     charge_amount = round(amount * (1 + method.commission_percent / 100), 2)
 
     if method.gateway_alias == "cryptobot":
+        ensure_payment_gateway_configured(CRYPTO_PAY_TOKEN)
         headers = {"Crypto-Pay-API-Token": CRYPTO_PAY_TOKEN}
         payload = {
             "currency_type": "crypto",
@@ -527,22 +880,27 @@ async def create_deposit(data: dict, current_user: User = Depends(require_auth),
             "paid_btn_name": "callback",
             "paid_btn_url": "https://likeagod.net/main"
         }
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{CRYPTO_PAY_API_URL}/createInvoice", json=payload, headers=headers)
-            if response.status_code != 200: raise HTTPException(status_code=500,
-                                                                detail="CryptoPay API connection error")
-            res_data = response.json()
-            if not res_data.get("ok"): raise HTTPException(status_code=500, detail="Invoice rejected")
-            invoice = res_data["result"]
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                response = await client.post(f"{CRYPTO_PAY_API_URL}/createInvoice", json=payload, headers=headers)
+                if response.status_code != 200:
+                    raise HTTPException(status_code=502, detail="Payment gateway unavailable")
+                res_data = response.json()
+                if not res_data.get("ok") or "result" not in res_data:
+                    raise HTTPException(status_code=502, detail="Payment gateway unavailable")
+                invoice = res_data["result"]
 
-            tx = TransactionHistory(user_id=current_user.id, amount=amount, currency="USDT", type="deposit",
-                                    status="pending", payment_id=str(invoice["invoice_id"]),
-                                    address=invoice["bot_invoice_url"])
-            db.add(tx)
-            db.commit()
-            return {"pay_url": invoice["bot_invoice_url"]}
+                tx = TransactionHistory(user_id=current_user.id, amount=amount, currency="USDT", type="deposit",
+                                        status="pending", payment_id=str(invoice["invoice_id"]),
+                                        address=str(invoice["bot_invoice_url"])[:MAX_URL_LENGTH])
+                db.add(tx)
+                db.commit()
+                return {"pay_url": invoice["bot_invoice_url"]}
+        except httpx.HTTPError:
+            raise HTTPException(status_code=502, detail="Payment gateway unavailable")
 
     elif method.gateway_alias == "aaio_rub":
+        ensure_payment_gateway_configured(AAIO_MERCHANT_ID, AAIO_SECRET_1)
         rub_amount = round(charge_amount * 90.0, 2)
         tx = TransactionHistory(user_id=current_user.id, amount=amount, currency="RUB", type="deposit",
                                 status="pending")
@@ -572,12 +930,13 @@ async def cancel_pending_deposit(current_user: User = Depends(require_auth), db:
     if not tx: raise HTTPException(status_code=404, detail="No active pending deposits found.")
 
     if tx.payment_id and tx.currency == "USDT":
+        ensure_payment_gateway_configured(CRYPTO_PAY_TOKEN)
         headers = {"Crypto-Pay-API-Token": CRYPTO_PAY_TOKEN}
         payload = {"invoice_id": int(tx.payment_id)}
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=8.0) as client:
                 await client.post(f"{CRYPTO_PAY_API_URL}/deleteInvoice", json=payload, headers=headers)
-        except:
+        except httpx.HTTPError:
             pass
 
     tx.status = "failed"
@@ -597,10 +956,16 @@ async def get_payment_history(current_user: User = Depends(require_auth), db: Se
 
 @app.post("/api/v1/payments/webhook", tags=["Payments"])
 async def crypto_pay_webhook(request: Request, db: Session = Depends(get_db)):
-    body = await request.json()
+    raw_body = await request.body()
+    verify_crypto_pay_signature(request, raw_body)
+    try:
+        body = json.loads(raw_body.decode("utf-8"))
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid webhook payload")
+
     if body.get("update_type") == "invoice_paid":
-        invoice = body["payload"]
-        invoice_id = str(invoice["invoice_id"])
+        invoice = body.get("payload") or {}
+        invoice_id = normalize_string(invoice.get("invoice_id"), field="invoice_id", max_length=64, allow_empty=False)
         tx = db.query(TransactionHistory).filter(TransactionHistory.payment_id == invoice_id,
                                                  TransactionHistory.status == 'pending').first()
         if tx:
@@ -620,16 +985,16 @@ async def list_news(db: Session = Depends(get_db)):
 
 @app.post("/news/create", tags=["Admin"])
 async def create_news(data: dict, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
-    title = str(data.get("title", "")).strip()
-    image_path = str(data.get("image_path", "")).strip()
+    title = normalize_string(data.get("title", ""), field="title", max_length=120, allow_empty=False)
+    image_path = validate_url_field(data.get("image_path", ""), field="image_path", allow_empty=False)
     if not title or not image_path:
         raise HTTPException(status_code=400, detail="Title and image are required")
 
     news = News(
-        title=title[:120],
+        title=title,
         image_path=image_path,
-        btn_text=str(data.get("btn_text") or "").strip() or None,
-        btn_url=str(data.get("btn_url") or "").strip() or None,
+        btn_text=normalize_string(data.get("btn_text"), field="btn_text", max_length=80) or None,
+        btn_url=validate_url_field(data.get("btn_url"), field="btn_url") or None,
     )
     db.add(news)
     db.commit()
@@ -654,7 +1019,8 @@ async def get_premium_tariffs(db: Session = Depends(get_db)):
 
 @app.post("/api/v1/premium/buy", tags=["Premium"])
 async def buy_premium(data: dict, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
-    tariff = db.query(PremiumTariff).filter(PremiumTariff.id == int(data.get("tariff_id", 0))).first()
+    tariff_id = parse_int_field(data.get("tariff_id", 0), field="tariff_id", minimum=1, maximum=1000000)
+    tariff = db.query(PremiumTariff).filter(PremiumTariff.id == tariff_id).first()
     if not tariff:
         raise HTTPException(status_code=404, detail="Premium tariff not found")
     stats = get_user_stats_or_404(current_user.id, db)
@@ -673,7 +1039,9 @@ async def buy_premium(data: dict, current_user: User = Depends(require_auth), db
 async def admin_adjust_balance(data: dict, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
     user = find_user_by_target(str(data.get("target", "")).strip(), db)
     stats = get_user_stats_or_404(user.id, db)
-    amount = float(data.get("amount", 0))
+    amount = parse_float_field(
+        data.get("amount", 0), field="amount", minimum=-MAX_ADMIN_BALANCE_ADJUSTMENT, maximum=MAX_ADMIN_BALANCE_ADJUSTMENT
+    )
     stats.balance = round(stats.balance + amount, 2)
     db.commit()
     return {"status": "success", "message": f"Balance updated for {user.username}"}
@@ -683,32 +1051,28 @@ async def admin_adjust_balance(data: dict, current_user: User = Depends(require_
 async def admin_adjust_elo(data: dict, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
     user = find_user_by_target(str(data.get("target", "")).strip(), db)
     stats = get_user_stats_or_404(user.id, db)
-    stats.elo = max(700, int(data.get("amount", stats.elo)))
+    stats.elo = max(700, parse_int_field(data.get("amount", stats.elo), field="amount", minimum=700, maximum=5000))
     db.commit()
     return {"status": "success", "message": f"ELO updated for {user.username}"}
 
 
 @app.post("/api/v1/admin/tariffs", tags=["Admin"])
 async def admin_upsert_tariff(data: dict, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
-    duration_months = int(data.get("duration_months", 0))
-    price = float(data.get("price", 0))
-    if duration_months <= 0 or price <= 0:
-        raise HTTPException(status_code=400, detail="Invalid tariff values")
+    duration_months = parse_int_field(data.get("duration_months", 0), field="duration_months", minimum=1, maximum=24)
+    price = parse_float_field(data.get("price", 0), field="price", minimum=0.01, maximum=MAX_PAYMENT_AMOUNT)
     tariff = db.query(PremiumTariff).filter(PremiumTariff.duration_months == duration_months).first()
     if not tariff:
         tariff = PremiumTariff(duration_months=duration_months, price=price)
         db.add(tariff)
     tariff.price = price
-    tariff.discount_text = str(data.get("discount_text") or "").strip() or None
+    tariff.discount_text = normalize_string(data.get("discount_text"), field="discount_text", max_length=64) or None
     db.commit()
     return {"status": "success"}
 
 
 @app.post("/api/v1/admin/commission", tags=["Admin"])
 async def admin_update_commission(data: dict, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
-    commission_percent = float(data.get("commission_percent", 10.0))
-    if commission_percent < 0 or commission_percent > 100:
-        raise HTTPException(status_code=400, detail="Commission must be between 0 and 100")
+    commission_percent = parse_float_field(data.get("commission_percent", 10.0), field="commission_percent", minimum=0, maximum=100)
     settings = db.query(PlatformSettings).first()
     if not settings:
         settings = PlatformSettings(commission_percent=commission_percent)
@@ -761,15 +1125,17 @@ async def get_landing_page_payload(request: Request, db: Session = Depends(get_d
 
 @app.post("/api/v1/payments/withdraw", tags=["Payments"])
 async def create_withdrawal(data: dict, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
-    amount = float(data.get("amount", 0))
-    method_id = int(data.get("method_id", 0))
-    raw_tg = str(data.get("address", "")).strip()
+    amount = parse_float_field(data.get("amount", 0), field="amount", minimum=0.01, maximum=MAX_PAYMENT_AMOUNT)
+    method_id = parse_int_field(data.get("method_id", 0), field="method_id", minimum=1, maximum=1000000)
+    raw_tg = normalize_string(data.get("address", ""), field="address", max_length=64, allow_empty=False)
 
     # Очищаем от собачки, если ввели @username
     tg_identifier = raw_tg.replace("@", "")
 
     if not tg_identifier:
         raise HTTPException(status_code=400, detail="Telegram ID or Username is required.")
+    if not (tg_identifier.isdigit() or TELEGRAM_USERNAME_RE.fullmatch(tg_identifier)):
+        raise HTTPException(status_code=400, detail="Telegram ID or Username is invalid.")
 
     method = db.query(PaymentMethod).filter(PaymentMethod.id == method_id, PaymentMethod.type == 'withdraw',
                                             PaymentMethod.is_active == True).first()
@@ -795,6 +1161,8 @@ async def create_withdrawal(data: dict, current_user: User = Depends(require_aut
     # Списание с баланса (холдирование)
     user_stats.balance = round(user_stats.balance - amount, 2)
     db.commit()
+
+    ensure_payment_gateway_configured(CRYPTO_PAY_TOKEN)
 
     # Формируем боевой payload для реального CryptoBot
     is_numeric_id = tg_identifier.isdigit()
@@ -835,9 +1203,7 @@ async def create_withdrawal(data: dict, current_user: User = Depends(require_aut
             return {"status": "success",
                     "message": f"Success! Instant payout of ${amount} sent to your @CryptoBot wallet."}
         else:
-            # ЕСЛИ КРИПТОБОТ ОТКЛОНИЛ ТРАНЗАКЦИЮ
             error_msg = res_data.get("error", {}).get("name", "TRANSFER_FAILED")
-
             # МГНОВЕННЫЙ РОЛЛБЭК БАЛАНСА ИГРОКУ
             user_stats.balance = round(user_stats.balance + amount, 2)
             tx.status = "failed"
@@ -850,12 +1216,10 @@ async def create_withdrawal(data: dict, current_user: User = Depends(require_aut
                     "message": "Transfer rejected! CryptoBot cannot find this username (due to your privacy settings or registration status). Please try using your numeric Telegram ID instead. Money refunded."
                 }
             else:
-                tx.address += f" (Error: {error_msg})"
                 db.commit()
-                return {"status": "failed",
-                        "message": f"Transfer rejected by gateway ({error_msg}). Your funds have been instantly refunded."}
+                return {"status": "failed", "message": "Transfer rejected by gateway. Your funds have been instantly refunded."}
 
-    except Exception as e:
+    except (ValueError, requests.RequestException):
         # Сетевой таймаут — оставляем в pending для безопасности
         return {"status": "success", "message": "Payout is processing. Waiting for network confirmation."}
 
