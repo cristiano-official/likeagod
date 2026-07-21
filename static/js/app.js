@@ -972,7 +972,7 @@ async function renderDuelHistory() {
   const A = App, t = A.t;
   const root = document.getElementById('duel-history-root');
   if (!root) return;
-  root.innerHTML = `<span class="eyebrow">${t('profile.duelHistory.title')}</span>
+  root.innerHTML = `<span class="eyebrow">${t('profile.duelHistory.eyebrow')}</span>
     <h2>${t('profile.duelHistory.title')}</h2>
     <p style="margin-bottom:16px">${t('profile.duelHistory.subtitle')}</p>
     <div id="duel-history-table"></div>
@@ -1067,7 +1067,7 @@ function renderBilling(me) {
 async function renderHistory() {
   const PAGE_SIZE = 8;
   const A = App, t = A.t;
-  const root = document.getElementById('history-root');
+  const root = document.getElementById('transaction-history-root');
   if (!root) return;
   root.innerHTML = `<span class="eyebrow">${t('profile.history.title')}</span>
     <h2>${t('profile.history.title')}</h2>

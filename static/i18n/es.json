@@ -295,7 +295,8 @@
       "usernamePlaceholder": "Nuevo nombre de usuario"
     },
     "duelHistory": {
-      "title": "Historial de duelos",
+      "eyebrow": "Historial de duelos",
+      "title": "Tus duelos pasados",
       "subtitle": "Duelos completados y cancelados.",
       "columns": {
         "date": "Fecha",

@@ -295,7 +295,8 @@
       "usernamePlaceholder": "新用户名"
     },
     "duelHistory": {
-      "title": "决斗历史",
+      "eyebrow": "决斗历史",
+      "title": "您的过往决斗",
       "subtitle": "已完成和已取消的决斗。",
       "columns": {
         "date": "日期",

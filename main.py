@@ -190,8 +190,10 @@ try:
     try:
         _mig_db.execute(_sql_text("ALTER TABLE platform_settings ADD COLUMN maintenance_mode BOOLEAN DEFAULT 0"))
         _mig_db.commit()
-    except Exception:
+    except Exception as _mig_exc:
         _mig_db.rollback()
+        if "duplicate column" not in str(_mig_exc).lower() and "already exists" not in str(_mig_exc).lower():
+            LOGGER.warning("Migration warning for maintenance_mode column: %s", _mig_exc)
 finally:
     _mig_db.close()
 
@@ -1711,13 +1713,6 @@ async def get_duel_rounds(duel_id: int, db: Session = Depends(get_db)):
     return db.query(DuelRoundEvent).filter(
         DuelRoundEvent.duel_id == duel_id
     ).order_by(DuelRoundEvent.round_number.asc()).all()
-
-
-
-
-
-
-
 
 
 @app.get("/api/main", response_model=MainPayloadResponse, tags=["Public Content Engine"])
