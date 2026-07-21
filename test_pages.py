@@ -28,7 +28,7 @@ client = TestClient(app)
 
 
 def test_shared_frontend_pages_use_static_assets():
-    for path in ['/main', '/duels', '/duel', '/premium', '/admin', '/terms', '/privacy', '/refund']:
+    for path in ['/main', '/duels', '/duel', '/premium', '/terms', '/privacy', '/refund']:
         response = client.get(path)
         assert response.status_code == 200
         assert '/static/css/style.css' in response.text

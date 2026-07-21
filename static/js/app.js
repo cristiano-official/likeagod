@@ -57,6 +57,11 @@ window.App = (() => {
     return out;
   }
 
+  function readCookie(name) {
+    const prefix = `${name}=`;
+    return document.cookie.split(';').map((v) => v.trim()).find((v) => v.startsWith(prefix))?.slice(prefix.length) || '';
+  }
+
   /* ---------------- API ---------------- */
   async function api(method, url, body) {
     const opts = {
@@ -64,6 +69,10 @@ window.App = (() => {
       credentials: 'include',
       headers: { Accept: 'application/json' }
     };
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(String(method).toUpperCase())) {
+      const csrfToken = readCookie('csrf_token');
+      if (csrfToken) opts.headers['X-CSRF-Token'] = csrfToken;
+    }
     if (body !== undefined) {
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(body);
