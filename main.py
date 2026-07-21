@@ -202,7 +202,7 @@ try:
         if "duplicate column" not in str(_mig_exc).lower() and "already exists" not in str(_mig_exc).lower():
             LOGGER.warning("Migration warning for private_commission_percent column: %s", _mig_exc)
     try:
-        _mig_db.execute(_sql_text("ALTER TABLE duels ADD COLUMN invite_token TEXT UNIQUE"))
+        _mig_db.execute(_sql_text("ALTER TABLE duels ADD COLUMN invite_token TEXT UNIQUE DEFAULT NULL"))
         _mig_db.commit()
     except Exception as _mig_exc:
         _mig_db.rollback()
@@ -942,6 +942,8 @@ async def create_duel(data: dict, current_user: User = Depends(require_auth), db
         check_wager_limit(st.wagered_amount, creator_share)
     if st.balance < creator_share: raise HTTPException(status_code=400, detail="Insufficient margin balance")
 
+    # 24 bytes → 32-character URL-safe base64 token; provides 192 bits of entropy,
+    # sufficient to make brute-force discovery of private duel invite links infeasible.
     invite_token = secrets.token_urlsafe(24) if is_private else None
     st.balance, st.frozen_balance = round(st.balance - creator_share, 2), round(st.frozen_balance + creator_share, 2)
     duel = Duel(creator_id=current_user.id, map_name=map_name, total_bank=bank,
