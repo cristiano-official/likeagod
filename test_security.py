@@ -116,8 +116,10 @@ def test_production_secret_validation_fails_fast(monkeypatch, tmp_path):
 
 
 def test_admin_api_and_webhook_stay_protected(monkeypatch, tmp_path):
-    module = load_module(monkeypatch, tmp_path)
+    module = load_module(monkeypatch, tmp_path, {'CRYPTO_PAY_TOKEN': 'CryptoPayToken-1234567890!Strong'})
     client = TestClient(module.app)
+    assert client.get('/api/v1/payments/history').status_code == 401
+
     user = create_user(module, username='guard01')
     authenticate(client, module, user.id)
 
