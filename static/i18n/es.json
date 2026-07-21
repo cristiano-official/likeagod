@@ -191,7 +191,7 @@
       "creatorConnected": "Creador conectado",
       "guestConnected": "Invitado conectado",
       "creatorWaiting": "Creador esperando",
-      "guestWaiting2": "Invitado esperando",
+      "guestWaiting": "Invitado esperando",
       "title": "Fase de calentamiento",
       "subtitle": "Ambos jugadores deben conectarse antes de que termine el calentamiento."
     },

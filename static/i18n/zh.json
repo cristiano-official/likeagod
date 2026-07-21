@@ -191,7 +191,7 @@
       "creatorConnected": "创建者已连接",
       "guestConnected": "挑战者已连接",
       "creatorWaiting": "创建者等待中",
-      "guestWaiting2": "挑战者等待中",
+      "guestWaiting": "挑战者等待中",
       "title": "热身阶段",
       "subtitle": "两名玩家必须在热身结束前连接服务器。"
     },

@@ -191,7 +191,7 @@
       "creatorConnected": "Creator connected",
       "guestConnected": "Guest connected",
       "creatorWaiting": "Creator waiting",
-      "guestWaiting2": "Guest waiting",
+      "guestWaiting": "Guest waiting",
       "title": "Warmup phase",
       "subtitle": "Both players must connect before warmup ends."
     },

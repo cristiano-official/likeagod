@@ -583,6 +583,8 @@ App.pages.duel = async function () {
   let pollTimer = null;
   const POLL_INTERVAL = 4000; // 4 s
   const POLL_STATUSES = new Set(['warmup', 'playing', 'paused', 'reserving']);
+  // Duration of the in-game warmup phase shown to players (distinct from the backend's
+  // _RESERVATION_TIMEOUT of 5 min, which is the no-show window before auto-cancel).
   const WARMUP_DURATION_MS = 3 * 60 * 1000; // 3 minutes
 
   function warmupSecondsLeft(warmupStartedAt) {
@@ -605,6 +607,9 @@ App.pages.duel = async function () {
   }
 
   async function renderDuel(duel) {
+    // Defensively clear any existing poll timer to prevent overlapping intervals
+    // if renderDuel is called multiple times (e.g. rapid state transitions).
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     const u = A.state.user;
     const isCreator = u && u.id === duel.creator_id;
     const isGuest = u && u.id === duel.guest_id;
@@ -691,8 +696,7 @@ App.pages.duel = async function () {
         <div id="warmup-countdown" class="countdown-display">${t('duel.warmup.countdown')}: <strong>${formatCountdown(secsLeft)}</strong></div>
         ${connectBtn}`;
       infoEl.classList.remove('hidden');
-      // Tick countdown locally every second
-      if (pollTimer) clearInterval(pollTimer);
+      // Tick countdown locally every second; also poll for state changes
       pollTimer = setInterval(async () => {
         const cdEl = document.getElementById('warmup-countdown');
         if (cdEl && duel.warmup_started_at) {
@@ -728,7 +732,6 @@ App.pages.duel = async function () {
         <div class="stack-sm" style="margin-top:8px">${roundRows}</div>`;
       infoEl.classList.remove('hidden');
       // Poll for updates
-      if (pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(async () => {
         try {
           const fresh = await A.api('GET', '/api/v1/duels/' + id);
@@ -750,7 +753,6 @@ App.pages.duel = async function () {
         ${connectBtn}`;
       infoEl.classList.remove('hidden');
       // Poll for resume
-      if (pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(async () => {
         try {
           const fresh = await A.api('GET', '/api/v1/duels/' + id);
@@ -765,7 +767,6 @@ App.pages.duel = async function () {
     } else {
       infoEl.innerHTML = '';
       infoEl.classList.add('hidden');
-      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     }
 
     // Actions panel
