@@ -71,7 +71,7 @@ LANGUAGE_ALLOWLIST = {"en", "ru", "es", "zh", "de"}
 MAP_ALLOWLIST = {"aim_redline", "aim_ag_texture", "awp_india"}
 PAYMENT_METHOD_TYPES = {"deposit", "withdraw"}
 INSECURE_SECRET_MARKERS = {
-    "123456:aa....",
+    "123456:AA....",
     "0eb484ec834db43b23888c5f5be01103680db120b491af1379c1f30dc1f0d211",
     "super_secret_token_for_cs2_server",
     "your_merchant_id",
@@ -443,7 +443,7 @@ def decode_jwt_token(token: str) -> Optional[int]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload.get('user_id')
-    except jwt.PyJWTError:
+    except jwt.InvalidTokenError:
         return None
 
 
