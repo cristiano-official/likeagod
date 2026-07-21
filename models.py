@@ -67,6 +67,7 @@ class Duel(Base):
     min_rank = Column(Integer, default=1)
     max_rank = Column(Integer, default=10)
     is_private = Column(Boolean, default=False)
+    invite_token = Column(String, unique=True, index=True, nullable=True)
     # Status lifecycle: waiting → warmup → playing ⇄ paused → completed|cancelled
     # Legacy states also supported: ready, processing, disputed
     status = Column(String, default='waiting')
@@ -159,6 +160,7 @@ class PlatformSettings(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     commission_percent = Column(Float, default=10.0)
+    private_commission_percent = Column(Float, default=10.0)
     maintenance_mode = Column(Boolean, default=False)
 
 

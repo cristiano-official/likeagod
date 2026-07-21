@@ -28,6 +28,11 @@ async def render_duel_room(request: Request):
     return render_template("duel.html")
 
 
+@router.get("/duel/invite/{token}", response_class=HTMLResponse)
+async def render_duel_invite(token: str):  # token is matched by route; JS resolves it via by-invite API
+    return render_template("duel.html")
+
+
 @router.get("/premium", response_class=HTMLResponse)
 async def render_premium_shop(request: Request):
     return render_template("premium.html")

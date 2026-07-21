@@ -457,10 +457,11 @@ App.pages.home = async function () {
           const map = document.getElementById('cd-map').value;
           const min = parseInt(document.getElementById('cd-min').value, 10);
           const max = parseInt(document.getElementById('cd-max').value, 10);
+          const isPrivate = !!(document.getElementById('cd-private') && document.getElementById('cd-private').checked);
           if (!bank || bank <= 0) { A.toast(t('common.errors.invalidAmount'), 'error'); return; }
           btn.disabled = true;
           try {
-            const res = await A.api('POST', '/api/v1/duels', { total_bank: bank, map_name: map, min_rank: min, max_rank: max });
+            const res = await A.api('POST', '/api/v1/duels', { total_bank: bank, map_name: map, min_rank: min, max_rank: max, is_private: isPrivate });
             if (res && res.duel_id) location.href = '/duel?id=' + res.duel_id;
           } catch (err) { A.toast(err.message, 'error'); }
           finally { btn.disabled = isMaintenance; }
@@ -589,11 +590,27 @@ App.pages.duels = async function () {
 /* ---------- DUEL ROOM ---------- */
 App.pages.duel = async function () {
   const A = App, t = A.t;
-  const id = new URLSearchParams(location.search).get('id');
+  const params = new URLSearchParams(location.search);
+  let id = params.get('id');
+  const inviteToken = params.get('token') || (location.pathname.startsWith('/duel/invite/') ? location.pathname.split('/duel/invite/')[1] : null);
   const header = document.getElementById('duel-header');
   const vs = document.getElementById('duel-vs');
   const actions = document.getElementById('duel-actions');
   const reqPanel = document.getElementById('requests-panel');
+
+  // Resolve invite token to duel id if needed
+  if (!id && inviteToken) {
+    try {
+      const inviteData = await A.api('GET', '/api/v1/duels/by-invite/' + encodeURIComponent(inviteToken));
+      if (inviteData && inviteData.id) {
+        id = String(inviteData.id);
+        history.replaceState(null, '', '/duel?id=' + id);
+      }
+    } catch (err) {
+      if (header) header.innerHTML = `<div class="state-card"><h3>${err.message}</h3></div>`;
+      return;
+    }
+  }
 
   if (!id) {
     if (header) header.innerHTML = `<div class="state-card"><h3>${t('duel.invalidId')}</h3></div>`;
@@ -637,13 +654,43 @@ App.pages.duel = async function () {
 
     // Header
     if (header) {
+      const privateBadge = duel.is_private ? `<span class="badge">${t('duel.private.badge')}</span>` : '';
       header.innerHTML = `
         <span class="eyebrow">${t('duel.hero.eyebrow')} · #${duel.id}</span>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
           <h1 style="margin:0">${A.esc(duel.map_name)}</h1>
           ${A.statusBadge(duel.status)}
+          ${privateBadge}
         </div>
         <div class="duel-bank" style="margin-top:12px"><small>${t('duel.info.bank')}</small>${A.money(duel.total_bank)}</div>`;
+      // Private-duel info notices
+      if (duel.is_private) {
+        const noticeEl = document.createElement('p');
+        noticeEl.className = 'method-meta';
+        noticeEl.style.marginTop = '8px';
+        noticeEl.textContent = t('duel.private.noElo');
+        header.appendChild(noticeEl);
+      }
+      // Invite link — only visible when backend returns invite_token (creator only)
+      if (duel.invite_token) {
+        const inviteUrl = location.origin + '/duel/invite/' + duel.invite_token;
+        const inviteEl = document.createElement('div');
+        inviteEl.style.cssText = 'margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap';
+        inviteEl.innerHTML = `
+          <span class="method-meta">${t('duel.private.inviteLabel')}:</span>
+          <code style="font-size:0.85em;word-break:break-all">${A.esc(inviteUrl)}</code>
+          <button class="btn btn-sm" id="invite-copy-btn">${t('duel.private.copyLink')}</button>`;
+        header.appendChild(inviteEl);
+        const copyBtn = inviteEl.querySelector('#invite-copy-btn');
+        if (copyBtn) {
+          copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(inviteUrl).then(() => {
+              copyBtn.textContent = t('duel.private.copied');
+              setTimeout(() => { copyBtn.textContent = t('duel.private.copyLink'); }, 2000);
+            }).catch(() => A.toast(inviteUrl, 'info'));
+          });
+        }
+      }
     }
 
     // VS panel
@@ -1226,6 +1273,15 @@ App.pages.admin = async function () {
   if (guard) guard.classList.add('hidden');
   if (content) content.classList.remove('hidden');
 
+  // Pre-populate commission fields from current settings
+  try {
+    const mainData = await A.api('GET', '/api/main');
+    const commInput = document.getElementById('adm-commission');
+    const privCommInput = document.getElementById('adm-private-commission');
+    if (commInput && mainData && mainData.commission_percent != null) commInput.value = mainData.commission_percent;
+    if (privCommInput && mainData && mainData.private_commission_percent != null) privCommInput.value = mainData.private_commission_percent;
+  } catch (_) {}
+
   // user adjustments
   const bindTarget = () => document.getElementById('adm-target').value.trim();
   document.getElementById('adm-balance').addEventListener('click', async () => {
@@ -1267,7 +1323,12 @@ App.pages.admin = async function () {
   // commission
   document.getElementById('adm-commission-submit').addEventListener('click', async () => {
     try {
-      const r = await A.api('POST', '/api/v1/admin/commission', { commission_percent: parseFloat(document.getElementById('adm-commission').value) || 0 });
+      const payload = { commission_percent: parseFloat(document.getElementById('adm-commission').value) || 0 };
+      const privateInput = document.getElementById('adm-private-commission');
+      if (privateInput && privateInput.value !== '') {
+        payload.private_commission_percent = parseFloat(privateInput.value) || 0;
+      }
+      const r = await A.api('POST', '/api/v1/admin/commission', payload);
       A.toast(t('admin.toasts.commissionSaved') + ' ' + r.commission_percent + '%', 'success');
     } catch (err) { A.toast(err.message, 'error'); }
   });
