@@ -114,7 +114,7 @@ CRYPTO_PAY_API_URL = "https://pay.crypt.bot/api"
 
 
 def is_secret_strong(value: str, min_length: int) -> bool:
-    if len(value) < min_length or value.lower() in INSECURE_SECRET_MARKERS:
+    if len(value) < min_length or any(value.casefold() == marker.casefold() for marker in INSECURE_SECRET_MARKERS):
         return False
     classes = (
         any(ch.islower() for ch in value),
@@ -898,7 +898,7 @@ async def create_deposit(data: dict, current_user: User = Depends(require_auth),
                                         address=invoice_url)
                 db.add(tx)
                 db.commit()
-                return {"pay_url": invoice["bot_invoice_url"]}
+                return {"pay_url": invoice_url}
         except httpx.HTTPError:
             raise HTTPException(status_code=502, detail="Payment gateway unavailable")
 
