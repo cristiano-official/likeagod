@@ -371,6 +371,21 @@ App.pages.home = async function () {
   const A = App, t = A.t;
   const u = A.state.user;
 
+  // Fetch main payload for maintenance mode + active duel info
+  let mainPayload = null;
+  try { mainPayload = await A.api('GET', '/api/main'); } catch (_) {}
+
+  // Maintenance mode banner
+  const maintenanceBanner = document.getElementById('maintenance-banner');
+  if (mainPayload && mainPayload.maintenance_mode) {
+    if (maintenanceBanner) {
+      maintenanceBanner.textContent = t('home.maintenance.banner');
+      maintenanceBanner.classList.remove('hidden');
+    }
+  } else if (maintenanceBanner) {
+    maintenanceBanner.classList.add('hidden');
+  }
+
   // session card
   const session = document.getElementById('session-card');
   if (session) {
@@ -423,6 +438,7 @@ App.pages.home = async function () {
   // create duel (auth only)
   const createSection = document.getElementById('create-section');
   if (createSection) {
+    const isMaintenance = mainPayload && mainPayload.maintenance_mode;
     if (!u) { createSection.classList.add('hidden'); }
     else {
       createSection.classList.remove('hidden');
@@ -433,19 +449,23 @@ App.pages.home = async function () {
       if (minSel) minSel.innerHTML = A.rankOptions(1, false);
       if (maxSel) maxSel.innerHTML = A.rankOptions(10, false);
       const btn = document.getElementById('cd-submit');
-      if (btn) btn.addEventListener('click', async () => {
-        const bank = parseFloat(document.getElementById('cd-bank').value);
-        const map = document.getElementById('cd-map').value;
-        const min = parseInt(document.getElementById('cd-min').value, 10);
-        const max = parseInt(document.getElementById('cd-max').value, 10);
-        if (!bank || bank <= 0) { A.toast(t('common.errors.invalidAmount'), 'error'); return; }
-        btn.disabled = true;
-        try {
-          const res = await A.api('POST', '/api/v1/duels', { total_bank: bank, map_name: map, min_rank: min, max_rank: max });
-          if (res && res.duel_id) location.href = '/duel?id=' + res.duel_id;
-        } catch (err) { A.toast(err.message, 'error'); }
-        finally { btn.disabled = false; }
-      });
+      if (btn) {
+        if (isMaintenance) { btn.disabled = true; btn.title = t('home.maintenance.banner'); }
+        btn.addEventListener('click', async () => {
+          if (isMaintenance) { A.toast(t('home.maintenance.banner'), 'error'); return; }
+          const bank = parseFloat(document.getElementById('cd-bank').value);
+          const map = document.getElementById('cd-map').value;
+          const min = parseInt(document.getElementById('cd-min').value, 10);
+          const max = parseInt(document.getElementById('cd-max').value, 10);
+          if (!bank || bank <= 0) { A.toast(t('common.errors.invalidAmount'), 'error'); return; }
+          btn.disabled = true;
+          try {
+            const res = await A.api('POST', '/api/v1/duels', { total_bank: bank, map_name: map, min_rank: min, max_rank: max });
+            if (res && res.duel_id) location.href = '/duel?id=' + res.duel_id;
+          } catch (err) { A.toast(err.message, 'error'); }
+          finally { btn.disabled = isMaintenance; }
+        });
+      }
     }
   }
 
@@ -453,7 +473,7 @@ App.pages.home = async function () {
   const newsRoot = document.getElementById('news-root');
   if (newsRoot) {
     try {
-      const news = await A.api('GET', '/news');
+      const news = (mainPayload && mainPayload.news) ? mainPayload.news : await A.api('GET', '/news');
       if (!news || !news.length) {
         newsRoot.innerHTML = `<div class="state-card">${t('common.states.emptyNews')}</div>`;
       } else {
@@ -487,6 +507,7 @@ function duelCard(d) {
   const A = App;
   const own = A.state.user && A.state.user.username === d.creator_username;
   const disabled = !A.state.user || own;
+  const creatorLink = `/p/${encodeURIComponent(d.creator_username)}`;
   return `
     <div class="duel-card" data-id="${d.id}">
       <div class="duel-card-head">
@@ -494,9 +515,9 @@ function duelCard(d) {
         ${A.statusBadge('waiting')}
       </div>
       <div class="duel-creator">
-        ${A.avatarMarkup(null, d.creator_username)}
+        <a href="${creatorLink}" class="avatar-link">${A.avatarMarkup(d.creator_avatar || null, d.creator_username)}</a>
         <div>
-          <div class="duel-creator-name">${A.esc(d.creator_username)}</div>
+          <div class="duel-creator-name"><a href="${creatorLink}" class="creator-profile-link">${A.esc(d.creator_username)}</a></div>
           <div class="duel-creator-rank">${A.rankLabel(d.creator_rank)} · ELO ${d.creator_elo}</div>
         </div>
       </div>
@@ -884,15 +905,137 @@ App.pages.profile = async function () {
     ).join('');
   }
 
+  // Public match history (completed duels only)
+  const matchHistoryRoot = document.getElementById('match-history-root');
+  if (matchHistoryRoot) {
+    const recentDuels = profile.recent_duels || [];
+    if (!recentDuels.length) {
+      matchHistoryRoot.innerHTML = `<div class="state-card">${t('profile.matchHistory.empty')}</div>`;
+    } else {
+      matchHistoryRoot.innerHTML = recentDuels.map((d) => {
+        const myScore = d.i_am_creator ? d.creator_score : d.guest_score;
+        const oppScore = d.i_am_creator ? d.guest_score : d.creator_score;
+        const resultCls = d.won ? 'accent' : 'text-dim';
+        const resultLabel = d.won ? t('profile.matchHistory.won') : t('profile.matchHistory.lost');
+        return `
+          <div class="request-row">
+            <div class="req-name">${A.esc(d.opponent_username)}<br>
+              <span class="method-meta">${A.esc(d.map_name)}</span>
+            </div>
+            <span class="mono">${myScore}:${oppScore}</span>
+            <span class="${resultCls}">${resultLabel}</span>
+          </div>`;
+      }).join('');
+    }
+  }
+
   if (owner) {
     const me = A.state.user;
     if (!profile.is_own_profile || !me) { owner.classList.add('hidden'); return; }
     owner.classList.remove('hidden');
+
+    // Active duel banner (from /api/main)
+    renderActiveDuelBanner();
     renderBilling(me);
     renderHistory();
+    renderDuelHistory();
     renderSettings(me);
   }
 };
+
+async function renderActiveDuelBanner() {
+  const A = App, t = A.t;
+  const root = document.getElementById('active-duel-root');
+  if (!root) return;
+  try {
+    const payload = await A.api('GET', '/api/main');
+    const myDuels = (payload && payload.my_duels) ? payload.my_duels : [];
+    if (!myDuels.length) { root.classList.add('hidden'); return; }
+    const d = myDuels[0];
+    root.classList.remove('hidden');
+    root.innerHTML = `
+      <span class="eyebrow">${t('profile.activeDuel.title')}</span>
+      <p style="margin-bottom:12px">${t('profile.activeDuel.subtitle')}</p>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span>${A.statusBadge(d.status)}</span>
+        <span class="mono gold">${A.money(d.total_bank)}</span>
+        <span class="method-meta">${A.esc(d.creator_name)} vs ${A.esc(d.guest_name)}</span>
+        <a class="btn btn-sm" href="/duel?id=${d.id}">${t('profile.activeDuel.link')}</a>
+      </div>`;
+  } catch (_) {
+    root.classList.add('hidden');
+  }
+}
+
+async function renderDuelHistory() {
+  const PAGE_SIZE = 8;
+  const A = App, t = A.t;
+  const root = document.getElementById('duel-history-root');
+  if (!root) return;
+  root.innerHTML = `<span class="eyebrow">${t('profile.duelHistory.eyebrow')}</span>
+    <h2>${t('profile.duelHistory.title')}</h2>
+    <p style="margin-bottom:16px">${t('profile.duelHistory.subtitle')}</p>
+    <div id="duel-history-table"></div>
+    <div id="duel-history-pagination"></div>`;
+  const table = document.getElementById('duel-history-table');
+  const paginationEl = document.getElementById('duel-history-pagination');
+  let rows = [];
+  try {
+    rows = (await A.api('GET', '/api/v1/duels/my-history')) || [];
+  } catch (_) {
+    table.innerHTML = `<div class="state-card">${t('common.states.emptyDuelHistory')}</div>`;
+    return;
+  }
+  if (!rows.length) { table.innerHTML = `<div class="state-card">${t('profile.duelHistory.empty')}</div>`; return; }
+
+  let currentPage = 0;
+  const totalPages = Math.ceil(rows.length / PAGE_SIZE);
+
+  function renderDuelPage(page) {
+    currentPage = Math.max(0, Math.min(page, totalPages - 1));
+    const pageRows = rows.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
+    table.innerHTML = `
+      <table class="data-table">
+        <thead><tr>
+          <th>${t('profile.duelHistory.columns.date')}</th>
+          <th>${t('profile.duelHistory.columns.opponent')}</th>
+          <th>${t('profile.duelHistory.columns.map')}</th>
+          <th>${t('profile.duelHistory.columns.bank')}</th>
+          <th>${t('profile.duelHistory.columns.score')}</th>
+          <th>${t('profile.duelHistory.columns.result')}</th>
+        </tr></thead>
+        <tbody>${pageRows.map((r) => {
+          const dateStr = r.ended_at ? new Date(r.ended_at).toLocaleDateString() : new Date(r.created_at).toLocaleDateString();
+          const resultLabel = r.status === 'cancelled' ? t('profile.duelHistory.cancelled') : (r.won ? t('profile.duelHistory.won') : t('profile.duelHistory.lost'));
+          const resultCls = r.status === 'cancelled' ? '' : (r.won ? 'accent' : '');
+          return `<tr>
+            <td data-label="${t('profile.duelHistory.columns.date')}" class="mono">${A.esc(dateStr)}</td>
+            <td data-label="${t('profile.duelHistory.columns.opponent')}">${A.esc(r.opponent_username)}</td>
+            <td data-label="${t('profile.duelHistory.columns.map')}">${A.esc(r.map_name)}</td>
+            <td data-label="${t('profile.duelHistory.columns.bank')}" class="mono gold">${A.money(r.total_bank)}</td>
+            <td data-label="${t('profile.duelHistory.columns.score')}" class="mono">${r.creator_score}:${r.guest_score}</td>
+            <td data-label="${t('profile.duelHistory.columns.result')}" class="${resultCls}">${resultLabel}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`;
+    if (totalPages > 1) {
+      paginationEl.innerHTML = `
+        <div class="pagination-controls">
+          <button class="btn-secondary btn-sm" id="dh-prev" ${currentPage === 0 ? 'disabled' : ''}>${t('common.pagination.prev')}</button>
+          <span class="page-info">${currentPage + 1} / ${totalPages}</span>
+          <button class="btn-secondary btn-sm" id="dh-next" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>${t('common.pagination.next')}</button>
+        </div>`;
+      const prev = document.getElementById('dh-prev');
+      const next = document.getElementById('dh-next');
+      if (prev) prev.addEventListener('click', () => renderDuelPage(currentPage - 1));
+      if (next) next.addEventListener('click', () => renderDuelPage(currentPage + 1));
+    } else {
+      paginationEl.innerHTML = '';
+    }
+  }
+
+  renderDuelPage(0);
+}
 
 function renderBilling(me) {
   const A = App, t = A.t;
@@ -924,7 +1067,7 @@ function renderBilling(me) {
 async function renderHistory() {
   const PAGE_SIZE = 8;
   const A = App, t = A.t;
-  const root = document.getElementById('history-root');
+  const root = document.getElementById('transaction-history-root');
   if (!root) return;
   root.innerHTML = `<span class="eyebrow">${t('profile.history.title')}</span>
     <h2>${t('profile.history.title')}</h2>
@@ -1128,6 +1271,33 @@ App.pages.admin = async function () {
       A.toast(t('admin.toasts.commissionSaved') + ' ' + r.commission_percent + '%', 'success');
     } catch (err) { A.toast(err.message, 'error'); }
   });
+
+  // maintenance mode
+  const maintBtn = document.getElementById('adm-maintenance-btn');
+  const maintStatus = document.getElementById('adm-maintenance-status');
+  async function loadMaintenanceState() {
+    try {
+      const payload = await A.api('GET', '/api/main');
+      const on = payload && payload.maintenance_mode;
+      if (maintStatus) maintStatus.textContent = on ? t('admin.maintenance.enabled') : t('admin.maintenance.disabled');
+      if (maintBtn) {
+        maintBtn.textContent = on ? t('admin.maintenance.disable') : t('admin.maintenance.enable');
+        maintBtn.className = on ? 'btn-danger' : 'btn';
+        maintBtn.dataset.on = on ? '1' : '0';
+      }
+    } catch (_) {}
+  }
+  if (maintBtn) {
+    loadMaintenanceState();
+    maintBtn.addEventListener('click', async () => {
+      const enable = maintBtn.dataset.on !== '1';
+      try {
+        await A.api('POST', '/api/v1/admin/maintenance', { enabled: enable });
+        A.toast(enable ? t('admin.toasts.maintenanceOn') : t('admin.toasts.maintenanceOff'), 'success');
+        loadMaintenanceState();
+      } catch (err) { A.toast(err.message, 'error'); }
+    });
+  }
 };
 
 async function loadAdminNews() {

@@ -159,6 +159,7 @@ class PlatformSettings(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     commission_percent = Column(Float, default=10.0)
+    maintenance_mode = Column(Boolean, default=False)
 
 
 class PaymentMethod(Base):

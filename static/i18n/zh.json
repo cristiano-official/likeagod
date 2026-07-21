@@ -60,7 +60,8 @@
       "emptyDuels": "没有符合当前筛选条件的对局。",
       "emptyRequests": "还没有加入申请。",
       "emptyHistory": "暂无交易记录。",
-      "emptyTariffs": "暂未配置高级会员套餐。"
+      "emptyTariffs": "暂未配置高级会员套餐。",
+      "emptyDuelHistory": "暂无决斗历史。"
     },
     "labels": {
       "balance": "余额",
@@ -144,6 +145,9 @@
         "label": "多语言界面",
         "text": "英语、俄语、中文和西班牙语都通过共享 JSON 字典加载。"
       }
+    },
+    "maintenance": {
+      "banner": "网站正在维护中，暂时无法创建新决斗，请稍后再试。"
     }
   },
   "duels": {
@@ -289,6 +293,40 @@
       "effectsOff": "已关闭",
       "username": "用户名",
       "usernamePlaceholder": "新用户名"
+    },
+    "duelHistory": {
+      "eyebrow": "决斗历史",
+      "title": "您的过往决斗",
+      "subtitle": "已完成和已取消的决斗。",
+      "columns": {
+        "date": "日期",
+        "opponent": "对手",
+        "map": "地图",
+        "bank": "奖池",
+        "score": "比分",
+        "result": "结果",
+        "status": "状态"
+      },
+      "won": "胜利",
+      "lost": "失败",
+      "cancelled": "已取消",
+      "empty": "暂无决斗历史。"
+    },
+    "activeDuel": {
+      "title": "活跃决斗",
+      "subtitle": "您当前有一个活跃的决斗。",
+      "link": "打开决斗房间"
+    },
+    "matchHistory": {
+      "title": "比赛历史",
+      "subtitle": "近期完成的决斗。",
+      "opponent": "对手",
+      "map": "地图",
+      "score": "比分",
+      "result": "结果",
+      "won": "胜利",
+      "lost": "失败",
+      "empty": "暂无已完成的决斗。"
     }
   },
   "admin": {
@@ -342,7 +380,17 @@
       "newsSaved": "公告已保存。",
       "newsDeleted": "公告已删除。",
       "tariffSaved": "套餐已保存。",
-      "commissionSaved": "佣金已更新为"
+      "commissionSaved": "佣金已更新为",
+      "maintenanceOn": "维护模式已启用。",
+      "maintenanceOff": "维护模式已禁用。"
+    },
+    "maintenance": {
+      "title": "维护模式",
+      "subtitle": "阻止新决斗的创建和加入。",
+      "enable": "启用维护",
+      "disable": "禁用维护",
+      "enabled": "维护模式已开启",
+      "disabled": "维护模式已关闭"
     }
   },
   "premium": {

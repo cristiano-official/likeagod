@@ -26,9 +26,22 @@
           <div class="stats-grid" id="stats-root"></div>
         </div>
 
+        <!-- Public match history (completed duels, visible to all visitors) -->
+        <div class="card-lg stack-sm" id="match-history-section">
+          <div class="section-head" style="margin-bottom:0">
+            <span class="eyebrow" data-i18n="profile.matchHistory.title">Match history</span>
+            <p data-i18n="profile.matchHistory.subtitle">Recent completed duels.</p>
+          </div>
+          <div id="match-history-root"></div>
+        </div>
+
         <div class="stack hidden" id="owner-sections">
+          <!-- Active duel quick-link (own profile only) -->
+          <div class="card-lg hidden" id="active-duel-root"></div>
+
           <div class="card-lg" id="billing-root"></div>
-          <div class="card-lg" id="history-root"></div>
+          <div class="card-lg" id="transaction-history-root"></div>
+          <div class="card-lg" id="duel-history-root"></div>
           <div class="card-lg" id="settings-root"></div>
         </div>
       </div>

@@ -19,9 +19,12 @@ import jwt
 import requests
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pysteamsignin.steamsignin import SteamSignIn
 from dotenv import load_dotenv
@@ -31,6 +34,7 @@ from models import User, UserStats, Duel, DuelRoundEvent, Base, GameServer, News
 from database import engine, session_local
 from schemas import (
     DuelDetailsResponse,
+    DuelHistoryEntry,
     DuelLobbyResponse,
     DuelRequestResponse,
     DuelRoundEventResponse,
@@ -50,6 +54,7 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
+TEMPLATES_DIR = BASE_DIR / "templates"
 LOGGER = logging.getLogger("likeagod.security")
 
 APP_ENV = os.getenv("APP_ENV", os.getenv("ENVIRONMENT", "development")).strip().lower() or "development"
@@ -106,6 +111,7 @@ app = FastAPI(
     docs_url="/docs"
 )
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 app.add_middleware(
     CORSMiddleware,
@@ -176,6 +182,20 @@ AAIO_SECRET_2 = read_secret("AAIO_SECRET_2", min_length=24, required_in_producti
 validate_runtime_configuration()
 
 Base.metadata.create_all(bind=engine)
+
+# ---- Schema migrations (idempotent column additions) ----
+_mig_db = session_local()
+try:
+    from sqlalchemy import text as _sql_text
+    try:
+        _mig_db.execute(_sql_text("ALTER TABLE platform_settings ADD COLUMN maintenance_mode BOOLEAN DEFAULT 0"))
+        _mig_db.commit()
+    except Exception as _mig_exc:
+        _mig_db.rollback()
+        if "duplicate column" not in str(_mig_exc).lower() and "already exists" not in str(_mig_exc).lower():
+            LOGGER.warning("Migration warning for maintenance_mode column: %s", _mig_exc)
+finally:
+    _mig_db.close()
 
 db = session_local()
 try:
@@ -443,7 +463,24 @@ async def security_controls(request: Request, call_next):
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     LOGGER.exception("Unhandled server error on %s %s", request.method, request.url.path)
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept:
+        try:
+            return templates.TemplateResponse(request, "500.html", status_code=500)
+        except Exception:
+            pass
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept and exc.status_code == 404:
+        try:
+            return templates.TemplateResponse(request, "404.html", status_code=404)
+        except Exception:
+            pass
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
 def get_db():
@@ -518,6 +555,11 @@ def check_active_match_existence(user_id: int, db: Session):
 def get_current_commission(db: Session) -> float:
     settings = db.query(PlatformSettings).first()
     return settings.commission_percent if settings else 10.0
+
+
+def get_maintenance_mode(db: Session) -> bool:
+    settings = db.query(PlatformSettings).first()
+    return bool(settings.maintenance_mode) if settings and settings.maintenance_mode is not None else False
 
 
 def get_rank_from_elo(elo: int) -> int:
@@ -806,6 +848,31 @@ async def get_public_profile(username: str, request: Request, db: Session = Depe
     if not u: raise HTTPException(status_code=404, detail="Profile not found")
     st = get_user_stats_or_404(u.id, db)
     curr = get_current_user(request, db)
+
+    # Build recent completed duels (last 20, non-cancelled)
+    completed_duels = db.query(Duel).filter(
+        ((Duel.creator_id == u.id) | (Duel.guest_id == u.id)),
+        Duel.status == "completed"
+    ).order_by(Duel.ended_at.desc()).limit(20).all()
+
+    recent_duels = []
+    for d in completed_duels:
+        i_am_creator = d.creator_id == u.id
+        opponent_id = d.guest_id if i_am_creator else d.creator_id
+        opponent = db.query(User).filter(User.id == opponent_id).first() if opponent_id else None
+        won = d.winner_id == u.id
+        recent_duels.append({
+            "id": d.id,
+            "map_name": d.map_name,
+            "total_bank": d.total_bank,
+            "opponent_username": opponent.username if opponent else "Unknown",
+            "creator_score": d.creator_score,
+            "guest_score": d.guest_score,
+            "i_am_creator": i_am_creator,
+            "won": won,
+            "ended_at": d.ended_at,
+        })
+
     return {
         "id": u.id, "username": u.username, "avatar": u.avatar, "bio": u.bio, "country": u.country,
         "language": u.language, "theme": u.theme, "effects": u.effects,
@@ -813,12 +880,15 @@ async def get_public_profile(username: str, request: Request, db: Session = Depe
         "stats": {"duels": st.duels, "wins": st.wins, "kills": st.kills, "deaths": st.deaths, "elo": st.elo,
                   "rank": get_rank_from_elo(st.elo), "wagered_amount": st.wagered_amount,
                   "winrate": round((st.wins / st.duels * 100) if st.duels > 0 else 0, 1)},
-        "is_own_profile": bool(curr and curr.id == u.id)
+        "is_own_profile": bool(curr and curr.id == u.id),
+        "recent_duels": recent_duels,
     }
 
 
 @app.post("/api/v1/duels", tags=["Matchmaking"])
 async def create_duel(data: dict, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    if get_maintenance_mode(db):
+        raise HTTPException(status_code=503, detail="Site is under maintenance. Please try again later.")
     check_active_match_existence(current_user.id, db)
     st = db.query(UserStats).filter(UserStats.user_id == current_user.id).first()
     bank = parse_float_field(data.get("total_bank", 0), field="total_bank", minimum=0.01, maximum=MAX_DUEL_BANK)
@@ -848,12 +918,49 @@ async def create_duel(data: dict, current_user: User = Depends(require_auth), db
 @app.get("/api/v1/duels", response_model=list[DuelLobbyResponse], tags=["Matchmaking"])
 async def list_lobbies(db: Session = Depends(get_db)):
     _check_and_expire_reservations(db)
-    return [{
-        "id": d.id, "map_name": d.map_name, "total_bank": d.total_bank, "min_rank": d.min_rank, "max_rank": d.max_rank,
-        "creator_username": db.query(User.username).filter(User.id == d.creator_id).scalar(),
-        "creator_elo": db.query(UserStats.elo).filter(UserStats.user_id == d.creator_id).scalar(),
-        "creator_rank": get_rank_from_elo(db.query(UserStats.elo).filter(UserStats.user_id == d.creator_id).scalar())
-    } for d in db.query(Duel).filter(Duel.status == 'waiting', Duel.is_private == False).all()]
+    result = []
+    for d in db.query(Duel).filter(Duel.status == 'waiting', Duel.is_private == False).all():
+        creator = db.query(User).filter(User.id == d.creator_id).first()
+        elo = db.query(UserStats.elo).filter(UserStats.user_id == d.creator_id).scalar() or 1000
+        result.append({
+            "id": d.id, "map_name": d.map_name, "total_bank": d.total_bank,
+            "min_rank": d.min_rank, "max_rank": d.max_rank,
+            "creator_username": creator.username if creator else "Unknown",
+            "creator_avatar": creator.avatar if creator else "",
+            "creator_elo": elo,
+            "creator_rank": get_rank_from_elo(elo),
+        })
+    return result
+
+
+@app.get("/api/v1/duels/my-history", response_model=list[DuelHistoryEntry], tags=["Matchmaking"])
+async def get_my_duel_history(current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    """Return current user's completed and cancelled duels, most recent first."""
+    duels = db.query(Duel).filter(
+        ((Duel.creator_id == current_user.id) | (Duel.guest_id == current_user.id)),
+        Duel.status.in_(["completed", "cancelled"])
+    ).order_by(Duel.ended_at.desc(), Duel.created_at.desc()).all()
+
+    result = []
+    for d in duels:
+        i_am_creator = d.creator_id == current_user.id
+        opponent_id = d.guest_id if i_am_creator else d.creator_id
+        opponent = db.query(User).filter(User.id == opponent_id).first() if opponent_id else None
+        won = d.winner_id == current_user.id
+        result.append({
+            "id": d.id,
+            "map_name": d.map_name,
+            "total_bank": d.total_bank,
+            "opponent_username": opponent.username if opponent else "Unknown",
+            "opponent_avatar": opponent.avatar if opponent else "",
+            "creator_score": d.creator_score,
+            "guest_score": d.guest_score,
+            "status": d.status,
+            "won": won,
+            "ended_at": d.ended_at,
+            "created_at": d.created_at,
+        })
+    return result
 
 
 @app.get("/api/v1/duels/{duel_id}", response_model=DuelDetailsResponse, tags=["Matchmaking"])
@@ -908,6 +1015,8 @@ async def list_duel_requests(duel_id: int, current_user: User = Depends(require_
 
 @app.post("/api/v1/requests/{req_id}/accept", tags=["Matchmaking"])
 async def accept_duel_request(req_id: int, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    if get_maintenance_mode(db):
+        raise HTTPException(status_code=503, detail="Site is under maintenance. Please try again later.")
     req = db.query(DuelRequest).filter(DuelRequest.id == req_id, DuelRequest.status == "pending").first()
     if not req:
         raise HTTPException(status_code=404, detail="Duel request not found")
@@ -1245,6 +1354,18 @@ async def admin_update_commission(data: dict, current_user: User = Depends(requi
     settings.commission_percent = commission_percent
     db.commit()
     return {"status": "success", "commission_percent": settings.commission_percent}
+
+
+@app.post("/api/v1/admin/maintenance", tags=["Admin"])
+async def admin_toggle_maintenance(data: dict, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    enabled = parse_bool_field(data.get("enabled", False))
+    settings = db.query(PlatformSettings).first()
+    if not settings:
+        settings = PlatformSettings(maintenance_mode=enabled)
+        db.add(settings)
+    settings.maintenance_mode = enabled
+    db.commit()
+    return {"status": "success", "maintenance_mode": settings.maintenance_mode}
 
 
 # ==================== ADMIN: GAME SERVER CRUD ====================
@@ -1594,8 +1715,6 @@ async def get_duel_rounds(duel_id: int, db: Session = Depends(get_db)):
     ).order_by(DuelRoundEvent.round_number.asc()).all()
 
 
-
-
 @app.get("/api/main", response_model=MainPayloadResponse, tags=["Public Content Engine"])
 async def get_landing_page_payload(request: Request, db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
@@ -1619,7 +1738,7 @@ async def get_landing_page_payload(request: Request, db: Session = Depends(get_d
                                      "guest_name": guest.username if guest else "Waiting..."})
 
     response = {"news": news_payload, "commission_percent": commission, "authenticated": False, "user": None,
-                "stats": None, "my_duels": my_duels_payload}
+                "stats": None, "my_duels": my_duels_payload, "maintenance_mode": get_maintenance_mode(db)}
     if current_user:
         st = db.query(UserStats).filter(UserStats.user_id == current_user.id).first()
         elo_val = st.elo if st else 1000

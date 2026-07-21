@@ -78,7 +78,8 @@ window.Effects = (() => {
 
   function drawSnow() {
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(221, 230, 240, 0.7)';
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    ctx.fillStyle = isLight ? 'rgba(26, 26, 26, 0.75)' : 'rgba(221, 230, 240, 0.7)';
     for (const f of flakes) {
       ctx.beginPath();
       ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
