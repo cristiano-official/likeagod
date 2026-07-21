@@ -225,7 +225,6 @@ p { color: var(--text-dim); }
   z-index: 1;
   min-height: calc(100vh - var(--header-h));
   padding-top: var(--header-h);
-  background: var(--bg);
 }
 
 .section {

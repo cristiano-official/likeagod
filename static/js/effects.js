@@ -26,8 +26,16 @@ window.Effects = (() => {
   function ensureCanvas() {
     if (canvas) return canvas;
     canvas = document.getElementById('fx-canvas');
-    if (!canvas) return null;
+    if (!canvas) {
+      console.error('[effects] #fx-canvas element not found — effects cannot render');
+      return null;
+    }
     ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.error('[effects] Failed to obtain 2D context from #fx-canvas');
+      canvas = null;
+      return null;
+    }
     resize();
     window.addEventListener('resize', resize);
     document.addEventListener('visibilitychange', onVisibility);
@@ -61,7 +69,9 @@ window.Effects = (() => {
   }
 
   function drawRain() {
-    ctx.fillStyle = 'rgba(6, 9, 26, 0.28)';
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    // In light theme use a light-coloured fade trail; in dark theme use the standard dark navy trail.
+    ctx.fillStyle = isLight ? 'rgba(238, 242, 248, 0.28)' : 'rgba(6, 9, 26, 0.28)';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = 'rgba(14, 245, 181, 0.75)';
     ctx.font = '14px "JetBrains Mono", monospace';

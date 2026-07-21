@@ -18,7 +18,7 @@ import httpx
 import jwt
 import requests
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
@@ -123,7 +123,11 @@ app.add_middleware(
 
 steam_login = SteamSignIn()
 ALGORITHM = "HS256"
-CRYPTO_PAY_API_URL = "https://pay.crypt.bot/api"
+CRYPTO_PAY_API_URL = os.getenv("CRYPTO_PAY_API_URL", "https://pay.crypt.bot/api")
+# Derive the expected bot_invoice_url hostname directly from the configured API base URL so
+# mainnet (pay.crypt.bot) and testnet (testnet-pay.crypt.bot) are both accepted automatically
+# when the corresponding token is configured — no hard-coded list to keep in sync.
+_CRYPTO_PAY_EXPECTED_HOST: str = urlsplit(CRYPTO_PAY_API_URL).hostname or "pay.crypt.bot"
 
 
 def is_secret_strong(value: str, min_length: int) -> bool:
@@ -581,6 +585,28 @@ def get_maintenance_mode(db: Session) -> bool:
     return bool(settings.maintenance_mode) if settings and settings.maintenance_mode is not None else False
 
 
+_SUPPORTED_LANGS = {"en", "ru", "es", "zh"}
+
+
+def _localize_news_title(raw_title: str, lang: str) -> str:
+    """Return the localized title for the requested language.
+
+    Supports two storage formats:
+    1. Legacy plain string  → returned as-is (treated as English for all langs).
+    2. JSON dict keyed by language code → return ``lang`` key, fall back to "en",
+       then fall back to the raw string if neither key is present.
+    """
+    if not raw_title:
+        return raw_title
+    try:
+        data = json.loads(raw_title)
+        if isinstance(data, dict):
+            return data.get(lang) or data.get("en") or raw_title
+    except (json.JSONDecodeError, TypeError, ValueError):
+        pass
+    return raw_title
+
+
 def get_rank_from_elo(elo: int) -> int:
     return max(1, min(10, (elo - 700) // 100))
 
@@ -703,18 +729,27 @@ def _validate_final_score(creator_score: int, guest_score: int) -> bool:
 
 
 def _check_and_expire_reservations(db: Session) -> None:
-    """Lazy 5-minute no-show timeout: cancel warmup/reserving duels whose
-    server was reserved more than 5 minutes ago and live play hasn't started.
+    """Lazy 5-minute timeout for two cases:
+    1. Warmup/reserving duels whose server was reserved > 5 min ago and live play never started.
+    2. Waiting duels with no guest that have been open for > 5 min since creation.
     Called at the top of read endpoints and CS2-facing endpoints.
     """
     cutoff = datetime.utcnow() - _RESERVATION_TIMEOUT
+    # Case 1: warmup/reserving no-show
     expired = db.query(Duel).filter(
         Duel.status.in_(["warmup", "reserving"]),
         Duel.reserved_at < cutoff,
         Duel.live_started_at.is_(None),
     ).all()
-    if expired:
-        for duel in expired:
+    # Case 2: waiting with no guest for 5+ min
+    stale_waiting = db.query(Duel).filter(
+        Duel.status == "waiting",
+        Duel.guest_id.is_(None),
+        Duel.created_at < cutoff,
+    ).all()
+    to_cancel = expired + stale_waiting
+    if to_cancel:
+        for duel in to_cancel:
             _cancel_duel_and_release(duel, db)
         db.commit()
 
@@ -920,6 +955,11 @@ async def get_public_profile(username: str, request: Request, db: Session = Depe
 async def create_duel(data: dict, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
     if get_maintenance_mode(db):
         raise HTTPException(status_code=503, detail="Site is under maintenance. Please try again later.")
+    # Early check: reject creation if servers are configured but none are open.
+    # Skipped when the game_servers table is empty (development/unconfigured deployments).
+    # This is a best-effort guard; the join-time 503 remains as safety net.
+    if db.query(GameServer).first() and not db.query(GameServer).filter(GameServer.status == "open").first():
+        raise HTTPException(status_code=503, detail="All servers are currently busy. Please try again later.")
     check_active_match_existence(current_user.id, db)
     st = db.query(UserStats).filter(UserStats.user_id == current_user.id).first()
     bank = parse_float_field(data.get("total_bank", 0), field="total_bank", minimum=0.01, maximum=MAX_DUEL_BANK)
@@ -982,7 +1022,7 @@ async def get_my_duel_history(current_user: User = Depends(require_auth), db: Se
     duels = db.query(Duel).filter(
         ((Duel.creator_id == current_user.id) | (Duel.guest_id == current_user.id)),
         Duel.status.in_(["completed", "cancelled"])
-    ).order_by(Duel.ended_at.desc(), Duel.created_at.desc()).all()
+    ).distinct().order_by(Duel.ended_at.desc(), Duel.created_at.desc()).all()
 
     result = []
     for d in duels:
@@ -1218,7 +1258,7 @@ async def create_deposit(data: dict, current_user: User = Depends(require_auth),
                 invoice = res_data["result"]
 
                 invoice_url = validate_url_field(invoice.get("bot_invoice_url"), field="bot_invoice_url", allow_empty=False)
-                invoice_url = validate_url_host(invoice_url, field="bot_invoice_url", allowed_hosts=("pay.crypt.bot",))
+                invoice_url = validate_url_host(invoice_url, field="bot_invoice_url", allowed_hosts=(_CRYPTO_PAY_EXPECTED_HOST,))
                 tx = TransactionHistory(user_id=current_user.id, amount=amount, currency="USDT", type="deposit",
                                         status="pending", payment_id=str(invoice["invoice_id"]),
                                         address=invoice_url)
@@ -1308,19 +1348,41 @@ async def crypto_pay_webhook(request: Request, db: Session = Depends(get_db)):
 # ==================== CONTENT, PREMIUM AND ADMIN TOOLS ====================
 
 @app.get("/news", response_model=list[NewsResponse], tags=["Public Content Engine"])
-async def list_news(db: Session = Depends(get_db)):
-    return db.query(News).order_by(News.created_at.desc()).all()
+async def list_news(lang: str = Query("en"), db: Session = Depends(get_db)):
+    lang = lang if lang in _SUPPORTED_LANGS else "en"
+    items = db.query(News).order_by(News.created_at.desc()).all()
+    result = []
+    for n in items:
+        result.append({
+            "id": n.id,
+            "title": _localize_news_title(n.title, lang),
+            "image_path": n.image_path,
+            "btn_text": n.btn_text,
+            "btn_url": n.btn_url,
+            "created_at": n.created_at,
+        })
+    return result
 
 
 @app.post("/news/create", tags=["Admin"])
 async def create_news(data: dict, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
-    title = normalize_string(data.get("title", ""), field="title", max_length=120, allow_empty=False)
+    # Accept per-language title fields; fall back to the legacy single "title" field for
+    # backward compatibility so existing admin integrations continue to work.
+    title_en = normalize_string(data.get("title_en") or data.get("title", ""), field="title_en", max_length=120, allow_empty=False)
+    if not title_en:
+        raise HTTPException(status_code=400, detail="English title (title_en) is required")
+    title_ru = normalize_string(data.get("title_ru", ""), field="title_ru", max_length=120) or ""
+    title_es = normalize_string(data.get("title_es", ""), field="title_es", max_length=120) or ""
+    title_zh = normalize_string(data.get("title_zh", ""), field="title_zh", max_length=120) or ""
+
+    title_json = json.dumps({"en": title_en, "ru": title_ru or title_en, "es": title_es or title_en, "zh": title_zh or title_en}, ensure_ascii=False)
+
     image_path = validate_url_field(data.get("image_path", ""), field="image_path", allow_empty=False)
-    if not title or not image_path:
-        raise HTTPException(status_code=400, detail="Title and image are required")
+    if not image_path:
+        raise HTTPException(status_code=400, detail="Image URL is required")
 
     news = News(
-        title=title,
+        title=title_json,
         image_path=image_path,
         btn_text=normalize_string(data.get("btn_text"), field="btn_text", max_length=80) or None,
         btn_url=validate_url_field(data.get("btn_url"), field="btn_url") or None,
@@ -1778,11 +1840,13 @@ async def get_duel_rounds(duel_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/api/main", response_model=MainPayloadResponse, tags=["Public Content Engine"])
-async def get_landing_page_payload(request: Request, db: Session = Depends(get_db)):
+async def get_landing_page_payload(request: Request, lang: str = Query("en"), db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
+    # Prefer the authenticated user's stored language; fall back to the query-param lang.
+    user_lang = (current_user.language if current_user and current_user.language in _SUPPORTED_LANGS else None) or (lang if lang in _SUPPORTED_LANGS else "en")
     news = db.query(News).order_by(News.created_at.desc()).limit(10).all()
     news_payload = [
-        {"id": n.id, "title": n.title, "image_path": n.image_path, "btn_text": n.btn_text, "btn_url": n.btn_url,
+        {"id": n.id, "title": _localize_news_title(n.title, user_lang), "image_path": n.image_path, "btn_text": n.btn_text, "btn_url": n.btn_url,
          "created_at": n.created_at} for n in news]
     commission = get_current_commission(db)
     private_commission = get_current_private_commission(db)
