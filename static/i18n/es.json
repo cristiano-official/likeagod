@@ -60,7 +60,8 @@
       "emptyDuels": "No se encontraron duelos para los filtros seleccionados.",
       "emptyRequests": "Aún no hay solicitudes.",
       "emptyHistory": "No hay historial de transacciones.",
-      "emptyTariffs": "Todavía no hay tarifas premium configuradas."
+      "emptyTariffs": "Todavía no hay tarifas premium configuradas.",
+      "emptyDuelHistory": "Sin historial de duelos."
     },
     "labels": {
       "balance": "Saldo",
@@ -144,6 +145,9 @@
         "label": "UI multilingüe",
         "text": "Inglés, ruso, chino y español se cargan desde JSON compartidos."
       }
+    },
+    "maintenance": {
+      "banner": "El sitio está en mantenimiento. No se pueden crear nuevos duelos en este momento."
     }
   },
   "duels": {
@@ -289,6 +293,39 @@
       "effectsOff": "Desactivado",
       "username": "Nombre de usuario",
       "usernamePlaceholder": "Nuevo nombre de usuario"
+    },
+    "duelHistory": {
+      "title": "Historial de duelos",
+      "subtitle": "Duelos completados y cancelados.",
+      "columns": {
+        "date": "Fecha",
+        "opponent": "Oponente",
+        "map": "Mapa",
+        "bank": "Banco",
+        "score": "Marcador",
+        "result": "Resultado",
+        "status": "Estado"
+      },
+      "won": "Victoria",
+      "lost": "Derrota",
+      "cancelled": "Cancelado",
+      "empty": "Sin historial de duelos."
+    },
+    "activeDuel": {
+      "title": "Duelo activo",
+      "subtitle": "Tienes un duelo activo.",
+      "link": "Abrir sala de duelo"
+    },
+    "matchHistory": {
+      "title": "Historial de partidas",
+      "subtitle": "Duelos completados recientes.",
+      "opponent": "Oponente",
+      "map": "Mapa",
+      "score": "Marcador",
+      "result": "Resultado",
+      "won": "Victoria",
+      "lost": "Derrota",
+      "empty": "Sin duelos completados."
     }
   },
   "admin": {
@@ -342,7 +379,17 @@
       "newsSaved": "Anuncio guardado.",
       "newsDeleted": "Anuncio eliminado.",
       "tariffSaved": "Tarifa guardada.",
-      "commissionSaved": "Comisión actualizada a"
+      "commissionSaved": "Comisión actualizada a",
+      "maintenanceOn": "Mantenimiento activado.",
+      "maintenanceOff": "Mantenimiento desactivado."
+    },
+    "maintenance": {
+      "title": "Modo mantenimiento",
+      "subtitle": "Bloquea la creación de nuevos duelos.",
+      "enable": "Activar mantenimiento",
+      "disable": "Desactivar mantenimiento",
+      "enabled": "Mantenimiento ACTIVO",
+      "disabled": "Mantenimiento INACTIVO"
     }
   },
   "premium": {

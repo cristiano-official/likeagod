@@ -35,6 +35,32 @@ class UserStatsResponse(BaseModel):
     winrate: float
 
 
+class DuelHistoryEntry(BaseModel):
+    id: int
+    map_name: str
+    total_bank: float
+    opponent_username: str
+    opponent_avatar: str
+    creator_score: int
+    guest_score: int
+    status: str
+    won: bool
+    ended_at: Optional[datetime] = None
+    created_at: datetime
+
+
+class RecentDuelEntry(BaseModel):
+    id: int
+    map_name: str
+    total_bank: float
+    opponent_username: str
+    creator_score: int
+    guest_score: int
+    i_am_creator: bool
+    won: bool
+    ended_at: Optional[datetime] = None
+
+
 class ProfileResponse(BaseModel):
     id: int
     username: str
@@ -47,6 +73,7 @@ class ProfileResponse(BaseModel):
     is_premium: bool
     stats: UserStatsResponse
     is_own_profile: bool
+    recent_duels: Optional[List[RecentDuelEntry]] = None
 
 
 class NewsResponse(BaseModel):
@@ -67,6 +94,7 @@ class DuelLobbyResponse(BaseModel):
     min_rank: int
     max_rank: int
     creator_username: str
+    creator_avatar: str
     creator_elo: int
     creator_rank: int
 
@@ -192,6 +220,7 @@ class MainPayloadResponse(BaseModel):
     user: Optional[MainUserPayload] = None
     stats: Optional[MainStatsPayload] = None
     my_duels: List[ActiveDuelPayload]
+    maintenance_mode: bool = False
 
 
 # ==================== GAME SERVER SCHEMAS ====================

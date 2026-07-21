@@ -60,7 +60,8 @@
       "emptyDuels": "No duels found for the selected filters.",
       "emptyRequests": "No join requests yet.",
       "emptyHistory": "No transaction history yet.",
-      "emptyTariffs": "Premium tariffs have not been configured yet."
+      "emptyTariffs": "Premium tariffs have not been configured yet.",
+      "emptyDuelHistory": "No duel history yet."
     },
     "labels": {
       "balance": "Balance",
@@ -144,6 +145,9 @@
         "label": "Multilingual UI",
         "text": "English, Russian, Chinese, and Spanish dictionaries are loaded from shared JSON files."
       }
+    },
+    "maintenance": {
+      "banner": "The site is currently under maintenance. New duels cannot be created right now. Please check back soon."
     }
   },
   "duels": {
@@ -289,6 +293,39 @@
       "effectsOff": "Disabled",
       "username": "Username",
       "usernamePlaceholder": "New username"
+    },
+    "duelHistory": {
+      "title": "Duel history",
+      "subtitle": "Past completed and cancelled duels.",
+      "columns": {
+        "date": "Date",
+        "opponent": "Opponent",
+        "map": "Map",
+        "bank": "Bank",
+        "score": "Score",
+        "result": "Result",
+        "status": "Status"
+      },
+      "won": "Win",
+      "lost": "Loss",
+      "cancelled": "Cancelled",
+      "empty": "No duel history yet."
+    },
+    "activeDuel": {
+      "title": "Active duel",
+      "subtitle": "You currently have an active duel.",
+      "link": "Open duel room"
+    },
+    "matchHistory": {
+      "title": "Match history",
+      "subtitle": "Recent completed duels.",
+      "opponent": "Opponent",
+      "map": "Map",
+      "score": "Score",
+      "result": "Result",
+      "won": "Won",
+      "lost": "Lost",
+      "empty": "No completed duels yet."
     }
   },
   "admin": {
@@ -342,7 +379,17 @@
       "newsSaved": "Announcement saved.",
       "newsDeleted": "Announcement deleted.",
       "tariffSaved": "Tariff saved.",
-      "commissionSaved": "Commission updated to"
+      "commissionSaved": "Commission updated to",
+      "maintenanceOn": "Maintenance mode enabled.",
+      "maintenanceOff": "Maintenance mode disabled."
+    },
+    "maintenance": {
+      "title": "Maintenance mode",
+      "subtitle": "Block new duel creation and joining. Active duels continue unaffected.",
+      "enable": "Enable maintenance",
+      "disable": "Disable maintenance",
+      "enabled": "Maintenance mode is ON",
+      "disabled": "Maintenance mode is OFF"
     }
   },
   "premium": {

@@ -225,6 +225,7 @@ p { color: var(--text-dim); }
   z-index: 1;
   min-height: calc(100vh - var(--header-h));
   padding-top: var(--header-h);
+  background: var(--bg);
 }
 
 .section {
@@ -597,6 +598,8 @@ p { color: var(--text-dim); }
 .duel-creator .avatar { width: 40px; height: 40px; }
 .duel-creator-name { font-weight: 600; font-size: var(--fs-sm); }
 .duel-creator-rank { font-size: var(--fs-xs); color: var(--text-faint); font-family: var(--font-mono); }
+.creator-profile-link { color: inherit; transition: color var(--t-fast); }
+.creator-profile-link:hover { color: var(--accent); }
 .duel-card-meta { display: flex; align-items: center; justify-content: space-between; }
 .duel-bank { font-family: var(--font-mono); font-size: var(--fs-xl); color: var(--gold); }
 .duel-bank small { font-size: var(--fs-xs); color: var(--text-faint); display: block; text-transform: uppercase; letter-spacing: 0.08em; }
@@ -1021,13 +1024,16 @@ p { color: var(--text-dim); }
 
   .main-nav,
   .header-actions .desktop-only { display: none; }
-  /* On mobile, hide non-hamburger icon-btns from the header-actions to prevent overflow.
-     Logout and other controls are accessible via the hamburger nav. */
+  /* On mobile, push the header-actions group to the right and hide all
+     icon-buttons except the hamburger toggle. Avatar + hamburger stay visible. */
+  .header-actions {
+    margin-left: auto;
+    gap: var(--sp-2);
+  }
   .header-actions .icon-btn:not(.hamburger) { display: none; }
   .hamburger {
     display: grid;
     place-items: center;
-    margin-left: auto;
   }
 
   .mobile-visible { display: block; }
