@@ -63,6 +63,8 @@
               <label class="form-label" data-i18n="home.create.map">Map</label>
               <select class="form-select" id="cd-map"></select>
             </div>
+          </div>
+          <div class="form-row" id="cd-rank-group">
             <div class="form-group">
               <label class="form-label" data-i18n="home.create.minRank">Minimum rank</label>
               <select class="form-select" id="cd-min"></select>
@@ -72,11 +74,14 @@
               <select class="form-select" id="cd-max"></select>
             </div>
           </div>
-          <div class="form-actions">
-            <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-right:16px">
-              <input type="checkbox" id="cd-private" style="width:16px;height:16px">
-              <span data-i18n="duel.private.toggle">Private duel</span>
+          <div style="display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-4)">
+            <label class="switch">
+              <input type="checkbox" id="cd-private">
+              <span class="switch-track"></span>
             </label>
+            <span class="form-label" style="margin:0;cursor:pointer" data-i18n="duel.private.toggle">Private duel</span>
+          </div>
+          <div class="form-actions">
             <button class="btn" id="cd-submit" data-i18n="home.create.submit">Create duel</button>
           </div>
         </div>

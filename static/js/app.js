@@ -448,6 +448,14 @@ App.pages.home = async function () {
       if (mapSel) mapSel.innerHTML = A.mapOptions('aim_redline');
       if (minSel) minSel.innerHTML = A.rankOptions(1, false);
       if (maxSel) maxSel.innerHTML = A.rankOptions(10, false);
+      // Show/hide rank group based on private toggle
+      const privateTog = document.getElementById('cd-private');
+      const rankGroup = document.getElementById('cd-rank-group');
+      if (privateTog && rankGroup) {
+        function updateRankVisibility() { rankGroup.style.display = privateTog.checked ? 'none' : ''; }
+        privateTog.addEventListener('change', updateRankVisibility);
+        updateRankVisibility();
+      }
       const btn = document.getElementById('cd-submit');
       if (btn) {
         if (isMaintenance) { btn.disabled = true; btn.title = t('home.maintenance.banner'); }
@@ -474,7 +482,7 @@ App.pages.home = async function () {
   const newsRoot = document.getElementById('news-root');
   if (newsRoot) {
     try {
-      const news = (mainPayload && mainPayload.news) ? mainPayload.news : await A.api('GET', '/news');
+      const news = (mainPayload && mainPayload.news) ? mainPayload.news : await A.api('GET', '/news?lang=' + encodeURIComponent(window.I18n.current || 'en'));
       if (!news || !news.length) {
         newsRoot.innerHTML = `<div class="state-card">${t('common.states.emptyNews')}</div>`;
       } else {
@@ -981,6 +989,11 @@ App.pages.profile = async function () {
     if (!profile.is_own_profile || !me) { owner.classList.add('hidden'); return; }
     owner.classList.remove('hidden');
 
+    // On own profile, hide the public match-history section since duel-history-root (below)
+    // shows a superset (completed + cancelled) with pagination — prevents every duel appearing twice.
+    const matchHistorySection = document.getElementById('match-history-section');
+    if (matchHistorySection) matchHistorySection.classList.add('hidden');
+
     // Active duel banner (from /api/main)
     renderActiveDuelBanner();
     renderBilling(me);
@@ -1297,7 +1310,10 @@ App.pages.admin = async function () {
   document.getElementById('adm-news-submit').addEventListener('click', async () => {
     try {
       await A.api('POST', '/news/create', {
-        title: document.getElementById('adm-news-title').value.trim(),
+        title_en: document.getElementById('adm-news-title-en').value.trim(),
+        title_ru: document.getElementById('adm-news-title-ru').value.trim(),
+        title_es: document.getElementById('adm-news-title-es').value.trim(),
+        title_zh: document.getElementById('adm-news-title-zh').value.trim(),
         image_path: document.getElementById('adm-news-image').value.trim(),
         btn_text: document.getElementById('adm-news-btntext').value.trim(),
         btn_url: document.getElementById('adm-news-btnurl').value.trim()
@@ -1366,7 +1382,7 @@ async function loadAdminNews() {
   const list = document.getElementById('adm-news-list');
   if (!list) return;
   try {
-    const news = await A.api('GET', '/news');
+    const news = await A.api('GET', '/news?lang=en');
     if (!news || !news.length) { list.innerHTML = `<div class="state-card">${t('common.states.emptyNews')}</div>`; return; }
     list.innerHTML = news.map((n) => `
       <div class="request-row">
